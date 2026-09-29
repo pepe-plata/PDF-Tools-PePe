@@ -33,7 +33,7 @@
 </div>
 <script>
 const CDN={pdfLib:'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',pdfjs:'https://unpkg.com/pdfjs-dist@5.4.624/legacy/build/pdf.mjs',worker:'https://unpkg.com/pdfjs-dist@5.4.624/legacy/build/pdf.worker.mjs',jszip:'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'};
-const CACHE_NAME='pdf-tools-pepe-v08';
+const CACHE_NAME='pdf-tools-pepe-libs-v08';
 const netBadge=document.getElementById('net'),engine=document.getElementById('engine');
 function updateNetwork(){const on=navigator.onLine;netBadge.textContent=on?'● En línea':'● Sin conexión';netBadge.style.color=on?'var(--muted)':'var(--danger)'}
 addEventListener('online',updateNetwork);addEventListener('offline',updateNetwork);updateNetwork();
@@ -42,20 +42,11 @@ if(!Uint8Array.fromHex)Uint8Array.fromHex=function(s){if(typeof s!=='string'||s.
 if(!Uint8Array.prototype.toBase64)Object.defineProperty(Uint8Array.prototype,'toBase64',{value:function(){let b='';for(const x of this)b+=String.fromCharCode(x);return btoa(b)},configurable:true});
 if(!Uint8Array.fromBase64)Uint8Array.fromBase64=function(s){const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<a.length;i++)a[i]=b.charCodeAt(i);return a};
 if(!Promise.try)Promise.try=function(fn){return new Promise((r,j)=>{try{r(fn())}catch(e){j(e)}})};
-async function openCache(){return 'caches' in window?caches.open(CACHE_NAME):null}
-async function ensureCached(url){
-  const c=await openCache();
-  if(c){const hit=await c.match(url);if(hit)return 'cache'}
-  const r=await fetch(url,{cache:'no-store',mode:'cors'});
-  if(!r.ok)throw new Error('No se pudo descargar '+url+' ('+r.status+')');
-  if(c)await c.put(url,r.clone());
-  return 'cdn';
-}
+async function registerSW(){if(!('serviceWorker'in navigator)||!location.protocol.startsWith('http'))return null;try{const reg=await navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'});await navigator.serviceWorker.ready;return reg}catch(e){return null}}
+async function cacheHas(url){try{const c=await caches.open(CACHE_NAME);return !!await c.match(url)}catch(e){return false}}
+async function fetchAndCache(url){const r=await fetch(url,{cache:'no-store',mode:'cors'});if(!r.ok)throw new Error('No se pudo descargar '+url+' ('+r.status+')');try{const c=await caches.open(CACHE_NAME);await c.put(url,r.clone())}catch(e){}return r}
+async function ensureCached(url){if(await cacheHas(url))return 'cache';await fetchAndCache(url);return 'cdn'}
 function loadScript(url){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=url;s.onload=resolve;s.onerror=()=>reject(new Error('No se pudo cargar '+url));document.head.appendChild(s)})}
-async function registerSW(){
-  if(!('serviceWorker' in navigator)||!location.protocol.startsWith('http'))return false;
-  try{const reg=await navigator.serviceWorker.register('./service-worker.js');await navigator.serviceWorker.ready;return !!reg}catch(e){return false}
-}
 async function ensureEngines(){
   await registerSW();
   await Promise.all([ensureCached(CDN.pdfLib),ensureCached(CDN.pdfjs),ensureCached(CDN.worker),ensureCached(CDN.jszip)]);
@@ -65,8 +56,7 @@ async function ensureEngines(){
   window.pdfjsLib.GlobalWorkerOptions.workerSrc=CDN.worker;
   return true;
 }
-window.__enginesReady=ensureEngines().then(()=>{engine.textContent='Motores PDF listos';return true}).catch(e=>{window.__engineError=e;engine.textContent='Motor: error';return false});
-</script>
+window.__enginesReady=ensureEngines().then(()=>{engine.textContent=navigator.onLine?'Motores PDF listos':'Motores PDF listos · offline';return true}).catch(e=>{window.__engineError=e;engine.textContent='Motor: error';return false});</script>
 <script>
 const tools={extract:{title:'Extraer páginas',desc:'Selecciona páginas visualmente o mediante rangos y genera un PDF nuevo.'},merge:{title:'Unir PDF',desc:'Selecciona varios PDF, cambia el orden y crea un solo archivo.'},image:{title:'PDF → Imagen',desc:'Exporta páginas a JPG o PNG con resolución configurable.'},imagepdf:{title:'Imagen → PDF',desc:'Convierte una o varias imágenes en un PDF.'},txt:{title:'TXT → PDF',desc:'Convierte texto plano a PDF con paginación automática.'},html:{title:'HTML → PDF',desc:'Abre una vista de impresión para guardar el HTML como PDF.'}};
 let current='',pdfDoc=null,selected=new Set(),loadedFiles=[],cancelled=false;
