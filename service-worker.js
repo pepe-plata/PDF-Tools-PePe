@@ -1,0 +1,7 @@
+const CACHE='pdf-tools-pepe-v07';
+const APP=['./','./index.html','./manifest.json','./service-worker.js','./icons/icon-192.png','./icons/icon-512.png','./lib/jszip.min.js'];
+const LOCAL=['./lib/pdf-lib.min.js','./lib/pdf.mjs','./lib/pdf.worker.mjs'];
+const CDN=['https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js','https://unpkg.com/pdfjs-dist@5.4.624/legacy/build/pdf.mjs','https://unpkg.com/pdfjs-dist@5.4.624/legacy/build/pdf.worker.mjs'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(async c=>{await c.addAll(APP);await Promise.allSettled(LOCAL.map(u=>fetch(new Request(u)).then(r=>{if(r.ok)return c.put(u,r)})));await Promise.allSettled(CDN.map(u=>fetch(u).then(r=>{if(r.ok)return c.put(u,r)})))}).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;const u=new URL(e.request.url);const isApp=u.origin===location.origin,isLib=CDN.includes(e.request.url)||LOCAL.includes(u.pathname);if(!isApp&&!isLib)return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(x=>{const c=x.clone();caches.open(CACHE).then(cache=>cache.put(e.request,c));return x}).catch(()=>isApp?caches.match('./index.html'):Promise.reject(new Error('offline')))))});
