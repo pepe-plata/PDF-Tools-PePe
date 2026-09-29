@@ -1,14 +1,28 @@
 {
-  "name": "PDF Tools PePe",
+  "id": "/",
+  "name": "Kit de Herramientas PDF PePe© 2026",
   "short_name": "PDF Tools PePe",
   "description": "Herramientas PDF locales para Android.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#f6f8fc",
   "theme_color": "#2563eb",
   "lang": "es",
   "icons": [
+    {
+      "src": "icons/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "icons/icon-192.png",
       "sizes": "192x192",
