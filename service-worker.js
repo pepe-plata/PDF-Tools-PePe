@@ -1,4 +1,4 @@
-const CACHE = 'pdf-tools-pepe-v017';
+const CACHE = 'pdf-tools-pepe-v018';
 const APP = [
   './',
   './index.html',
@@ -83,9 +83,6 @@ self.addEventListener('fetch', e => {
       }
       return r;
     } catch (err) {
-      // Solo devolver index.html como fallback para NAVEGACIONES (deep links).
-      // NUNCA para imágenes, CSS, JS u otros assets: si falla la red para un
-      // asset, la respuesta correcta es dejar que falle, no servir HTML.
       if (app && req.mode === 'navigate') {
         const fb = (await c.match('./index.html')) || (await c.match('./'));
         if (fb) return fb;

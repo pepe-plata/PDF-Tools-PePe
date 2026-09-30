@@ -14,6 +14,12 @@
 :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color-scheme:light dark;--bg:light-dark(#f6f8fc,#0d1117);--surface:light-dark(#fff,#161b22);--surface2:light-dark(#eef3fb,#1d2430);--text:light-dark(#182230,#f2f5f8);--muted:light-dark(#667085,#9da7b5);--border:light-dark(#d9e0ea,#303946);--accent:light-dark(#2563eb,#60a5fa);--accent2:light-dark(#e8f0ff,#1c3154);--danger:light-dark(#b42318,#ff8a80)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}.app{min-height:100vh;background:var(--bg)}
 
+/* Splash */
+#app-splash{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .35s ease}
+#app-splash img{width:120px;height:120px;border-radius:24px;box-shadow:0 8px 32px rgba(37,99,235,.18)}
+#app-splash .app-splash-title{color:var(--accent);font-weight:780;font-size:15px;text-align:center;padding:0 20px;letter-spacing:.2px}
+#app-splash.hide{opacity:0;pointer-events:none}
+
 header{padding:10px 12px 9px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(12px);z-index:50;border-bottom:1px solid var(--border)}
 .header-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
 .header-right{display:flex;flex-direction:column;gap:3px;align-items:flex-end;flex-shrink:0}
@@ -99,6 +105,12 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 16px 24px}
 </style>
 </head>
 <body>
+<div id="app-splash">
+  <img src="./icons/icon-192.png" alt="">
+  <div class="app-splash-title">Kit de Herramientas PDF PePe© 2026</div>
+</div>
+<script>window.__splashStart = performance.now();</script>
+
 <div class="app">
 <header>
   <div class="header-left">
@@ -132,12 +144,12 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 16px 24px}
 <div class="section">Privacidad</div><div class="panel"><strong>Procesamiento en el dispositivo</strong><div class="note">Los archivos seleccionados se procesan localmente en su dispositivo, ninguno se sube a algún servidor externo, por lo que no se comparten con nadie.</div></div>
 </section>
 <section id="tool" class="hidden"><div class="panel" style="margin-top:12px"><h2 id="toolTitle" style="margin:0 0 5px;font-size:20px"></h2><p id="toolDesc" style="margin:0;color:var(--muted);font-size:13px"></p><div class="drop" id="drop"><div style="font-size:30px">📂</div><strong id="dropText">Seleccionar archivo</strong><div><input id="file" type="file" hidden><button class="secondary" id="pick">Elegir archivo</button></div><p>También puedes arrastrar y soltar archivos.</p></div><div id="options"></div><div id="preview"></div></div></section>
-</main><footer>Kit de Herramientas PDF PePe© 2026 · v0.17</footer>
+</main><footer>Kit de Herramientas PDF PePe© 2026 · v0.18</footer>
 </div>
 
 <script>
 const CDN={pdfLib:'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',pdfjs:'https://unpkg.com/pdfjs-dist@5.4.624/legacy/build/pdf.mjs',worker:'https://unpkg.com/pdfjs-dist@5.4.624/legacy/build/pdf.worker.mjs',jszip:'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'};
-const CACHE_NAME='pdf-tools-pepe-v017';
+const CACHE_NAME='pdf-tools-pepe-v018';
 const netBadge=document.getElementById('net'),engine=document.getElementById('engine');
 function updateNetwork(){const on=navigator.onLine;netBadge.textContent=on?'● En línea':'● Sin conexión';netBadge.style.color=on?'var(--muted)':'var(--danger)'}
 addEventListener('online',updateNetwork);addEventListener('offline',updateNetwork);updateNetwork();
@@ -215,9 +227,50 @@ drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag
 drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
 drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');showFiles([...e.dataTransfer.files])});
 
-navBtn.onclick=()=>{ if(tool.classList.contains('hidden'))return; goHome(); };
+/* ==========================================================================
+   Splash: se muestra al menos 2 segundos desde el inicio de la carga
+   ========================================================================== */
+(function setupSplash(){
+  const MIN_MS = 2000;
+  const hide = () => {
+    const s = document.getElementById('app-splash');
+    if(!s) return;
+    s.classList.add('hide');
+    setTimeout(()=>{ try{s.remove()}catch(_){} }, 400);
+  };
+  const arm = () => {
+    const start = window.__splashStart || performance.now();
+    const elapsed = performance.now() - start;
+    const wait = Math.max(0, MIN_MS - elapsed);
+    setTimeout(hide, wait);
+  };
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', arm, {once:true});
+  }else{
+    arm();
+  }
+  // Red de seguridad: si algo falla, nunca dejar el splash bloqueando
+  setTimeout(hide, 6000);
+})();
 
-function goHome(){
+/* ==========================================================================
+   Navegación (botón atrás Android + botón flecha en el header)
+   ========================================================================== */
+window.addEventListener('popstate', (e) => {
+  // Si estamos dentro de una herramienta, volvemos al inicio
+  if(!tool.classList.contains('hidden')){
+    goHome(false);
+  }
+});
+
+navBtn.onclick=()=>{
+  if(tool.classList.contains('hidden'))return;
+  // Intentar retroceder en el histórico para que se dispare popstate
+  try{ history.back(); }
+  catch(e){ goHome(false); }
+};
+
+function goHome(fromReset){
   tool.classList.add('hidden');
   home.classList.remove('hidden');
   reset();
@@ -226,7 +279,6 @@ function goHome(){
 function updateNavBtn(){
   const onTool=!tool.classList.contains('hidden');
   if(onTool){
-    // Flecha de volver con icono propio (icons/return.png), con fallback a ←
     navBtn.innerHTML='<img src="./icons/return.png" alt="Volver" onerror="this.onerror=null;this.replaceWith(document.createTextNode(\'←\'))">';
     navBtn.title='Volver';
     navBtn.disabled=false;
@@ -247,6 +299,7 @@ function reset(){
 function revokeThumbs(){thumbUrls.forEach(u=>{try{URL.revokeObjectURL(u)}catch(_){}});thumbUrls=[]}
 
 function openTool(k){
+  const wasInTool=!tool.classList.contains('hidden');
   reset();
   current=k;
   home.classList.add('hidden');
@@ -271,6 +324,12 @@ function openTool(k){
   else drop.classList.remove('hidden');
   renderOptions();
   updateNavBtn();
+  // Empujar estado al histórico para que el botón atrás de Android regrese aquí
+  if(!wasInTool){
+    try{ history.pushState({tool:k}, '', '#'+k); }catch(e){}
+  }else{
+    try{ history.replaceState({tool:k}, '', '#'+k); }catch(e){}
+  }
 }
 
 /* ==========================================================================
@@ -591,7 +650,35 @@ function updateSelectedCount(){const e=document.querySelector('#selectedCount');
 function togglePage(n,b){selected.has(n)?selected.delete(n):selected.add(n);b.classList.toggle('selected',selected.has(n));b.querySelector('.check')?.remove();if(selected.has(n))b.insertAdjacentHTML('beforeend','<span class="check">✓</span>');updateSelectedCount()}
 function parseRange(s,max){if(!s.trim())return[...selected].sort((a,b)=>a-b);const out=new Set();for(const part of s.split(',')){const p=part.trim();if(/^\d+$/.test(p)){const n=+p;if(n>=1&&n<=max)out.add(n)}else if(/^(\d+)-(\d+)$/.test(p)){let[a,b]=p.split('-').map(Number);if(a>b)[a,b]=[b,a];for(let n=Math.max(1,a);n<=Math.min(max,b);n++)out.add(n)}}return[...out].sort((a,b)=>a-b)}
 function busy(t='Procesando…'){cancelled=false;const d=document.createElement('div');d.className='progressWrap';d.innerHTML='<div class="progressBar"><i></i></div><div class="progressLine"><span class="statusText">'+esc(t)+'</span><button class="danger mini" type="button">Cancelar</button></div>';preview.appendChild(d);const btn=d.querySelector('button');btn.onclick=()=>{cancelled=true;btn.disabled=true;d.querySelector('.statusText').textContent='Cancelando…'};return{el:d,set(v,t){d.querySelector('i').style.width=Math.max(0,Math.min(100,v))+'%';if(t)d.querySelector('.statusText').textContent=t},done(t){d.querySelector('i').style.width='100%';d.querySelector('.statusText').textContent=t;btn.remove()},check(){if(cancelled)throw new Error('__CANCEL__')}}}
-function dl(bytes,name,type='application/pdf'){const blob=new Blob([bytes],{type}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+
+/**
+ * Descarga de archivos con opción de renombrar.
+ * Muestra un prompt con el nombre por defecto; si el usuario lo cambia, se usa
+ * el nombre introducido. Si cancela el prompt, no se descarga nada.
+ */
+function dl(bytes,name,type='application/pdf'){
+  const blob=new Blob([bytes],{type});
+  let filename=name;
+  try{
+    const input=window.prompt('Nombre del archivo:',name);
+    if(input===null)return; // cancelado
+    const cleaned=String(input).trim().replace(/[\\/:*?"<>|\u0000-\u001F]/g,'_');
+    if(cleaned){
+      filename=cleaned;
+      if(!/\.[a-zA-Z0-9]{2,5}$/.test(filename)){
+        const ext=(name.split('.').pop()||'pdf');
+        filename+='.'+ext;
+      }
+    }
+  }catch(e){/* prompt bloqueado, seguimos con name */}
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
 function base(n){return n.replace(/\.[^.]+$/,'')}
 
 /* ==========================================================================
@@ -747,161 +834,102 @@ async function makeImages(){
 }
 
 /* ==========================================================================
-   EXTRAER IMÁGENES — versión robusta
+   EXTRAER IMÁGENES — v3 (intercepta drawImage durante el render)
    ========================================================================== */
 
-/**
- * Convierte cualquier representación de imagen que devuelva pdf.js a un
- * HTMLCanvasElement con los píxeles dibujados.
- * Soporta: ImageBitmap, HTMLCanvasElement, datos en bruto {data,width,height}
- * con formatos RGBA (4 bytes/píxel), RGB (3 bytes/píxel) y grayscale (1 byte/píxel).
- */
-function pdfJsImageToCanvas(img){
-  if(!img)return null;
-
-  // ImageBitmap (lo más común en pdf.js 4.x+ con isOffscreenCanvasSupported)
-  if(typeof ImageBitmap!=='undefined'&&img instanceof ImageBitmap){
+/** Hash rápido para deduplicar imágenes idénticas dentro de la misma página. */
+function quickHash(canvas){
+  try{
     const c=document.createElement('canvas');
-    c.width=img.width||0;
-    c.height=img.height||0;
-    if(!c.width||!c.height)return null;
-    c.getContext('2d').drawImage(img,0,0);
-    return c;
-  }
-
-  // Ya es un canvas
-  if(typeof HTMLCanvasElement!=='undefined'&&img instanceof HTMLCanvasElement)return img;
-
-  // Datos en bruto
-  const w=img.width|0, h=img.height|0;
-  if(w>0&&h>0&&img.data){
-    const data=img.data;
-    const pixels=w*h;
-    const c=document.createElement('canvas');
-    c.width=w;c.height=h;
-    const ctx=c.getContext('2d');
-    const id=ctx.createImageData(w,h);
-    const out=id.data;
-
-    if(data.length===pixels*4){
-      // RGBA
-      out.set(data.subarray(0,pixels*4));
-    }else if(data.length===pixels*3){
-      // RGB → RGBA
-      for(let i=0,j=0;i<pixels*3;i+=3,j+=4){
-        out[j]=data[i];out[j+1]=data[i+1];out[j+2]=data[i+2];out[j+3]=255;
-      }
-    }else if(data.length===pixels){
-      // Grayscale 8bpp → RGBA
-      for(let i=0,j=0;i<pixels;i++,j+=4){
-        out[j]=out[j+1]=out[j+2]=data[i];out[j+3]=255;
-      }
-    }else if(data.length>=Math.ceil(pixels/8)){
-      // 1-bit grayscale (raro pero ocurre con masks)
-      const bytesPerRow=Math.ceil(w/8);
-      for(let y=0;y<h;y++){
-        for(let x=0;x<w;x++){
-          const byte=data[y*bytesPerRow+((x/8)|0)];
-          const bit=(byte>>(7-(x&7)))&1;
-          const v=bit?255:0;
-          const j=(y*w+x)*4;
-          out[j]=out[j+1]=out[j+2]=v;out[j+3]=255;
-        }
-      }
-    }else{
-      return null;
-    }
-    ctx.putImageData(id,0,0);
-    return c;
-  }
-
-  return null;
-}
-
-/** Espera a que pdf.js resuelva un objeto de imagen de la página. */
-function resolvePageObj(page, name, timeoutMs=3000){
-  return new Promise((resolve)=>{
-    let done=false;
-    const finish=(v)=>{ if(!done){ done=true; resolve(v||null); } };
-
-    // 1) Intento síncrono: si ya está resuelto, devuelve el dato de inmediato.
-    try{
-      const sync=page.objs.get(name);
-      if(sync){ finish(sync); return; }
-    }catch(_){}
-
-    // 2) Callback asíncrono: se dispara cuando pdf.js resuelve el objeto.
-    try{
-      page.objs.get(name,(data)=>{ finish(data); });
-    }catch(_){}
-
-    // 3) Timeout de seguridad.
-    setTimeout(()=>finish(null),timeoutMs);
-  });
+    c.width=8;c.height=8;
+    const cx=c.getContext('2d',{willReadFrequently:true});
+    cx.drawImage(canvas,0,0,8,8);
+    const data=cx.getImageData(0,0,8,8).data;
+    let h=5381;
+    for(let i=0;i<data.length;i++) h=(((h<<5)+h)^data[i])|0;
+    return h>>>0;
+  }catch(e){ return Math.random()*1e9|0; }
 }
 
 /**
- * Extrae las imágenes raster incrustadas de una página del PDF.
- * Estrategia:
- *  - Obtiene el operator list para localizar las referencias a imágenes.
- *  - Fuerza el decode de las imágenes con un render a baja escala
- *    (pdf.js solo resuelve las imágenes al renderizar).
- *  - Recupera cada imagen desde page.objs y la convierte a canvas.
+ * Extrae las imágenes raster que pdf.js dibuja al renderizar la página.
+ * La estrategia es interceptar ctx.drawImage y ctx.putImageData durante un
+ * render real; de esta manera capturamos exactamente lo que pdf.js pinta,
+ * sin depender de que page.objs esté resuelto.
  */
 async function extractImagesFromPage(page){
-  const opList=await page.getOperatorList();
-
-  const OPS=pdfjsLib.OPS||{};
-  const OP_IMG_XOBJ=OPS.paintImageXObject;
-  const OP_IMG_INLINE=OPS.paintInlineImageXObject;
-  const OP_IMG_REPEAT=OPS.paintImageXObjectRepeat;
-
-  const xobjNames=[];
-  const inlineImages=[];
-
-  for(let i=0;i<opList.fnArray.length;i++){
-    const fn=opList.fnArray[i];
-    const args=opList.argsArray[i];
-    if(fn===OP_IMG_XOBJ){
-      if(args&&args[0]!=null)xobjNames.push(args[0]);
-    }else if(fn===OP_IMG_INLINE){
-      if(args&&args[0])inlineImages.push(args[0]);
-    }else if(OP_IMG_REPEAT!==undefined&&fn===OP_IMG_REPEAT){
-      if(args&&args[0]!=null)xobjNames.push(args[0]);
-    }
-  }
-
-  // Forzar decode de las imágenes XObject: pdf.js sólo las resuelve al renderizar.
-  if(xobjNames.length){
-    try{
-      const vp=page.getViewport({scale:0.1});
-      const c=document.createElement('canvas');
-      c.width=Math.max(1,Math.round(vp.width));
-      c.height=Math.max(1,Math.round(vp.height));
-      await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
-    }catch(e){/* si falla, intentamos igualmente */}
-
-    // Pequeña espera por si pdf.js sigue resolviendo en segundo plano.
-    await new Promise(r=>setTimeout(r,80));
-  }
-
-  const found=[];
-  // Imágenes inline: ya vienen con los datos en el propio operator list.
-  for(const img of inlineImages){
-    const canvas=pdfJsImageToCanvas(img);
-    if(canvas)found.push(canvas);
-  }
-  // XObjects: recuperar del cache de objetos de la página.
+  const images=[];
   const seen=new Set();
-  for(const name of xobjNames){
-    if(seen.has(name))continue;
-    seen.add(name);
-    const img=await resolvePageObj(page,name);
-    if(!img)continue;
-    const canvas=pdfJsImageToCanvas(img);
-    if(canvas&&canvas.width&&canvas.height)found.push(canvas);
+
+  const vp1=page.getViewport({scale:1});
+  // Limitamos el tamaño del canvas de render para no agotar memoria en móviles.
+  const MAX_PIXELS=4_000_000;
+  const pixels=vp1.width*vp1.height;
+  let renderScale=1;
+  if(pixels>MAX_PIXELS) renderScale=Math.sqrt(MAX_PIXELS/pixels);
+  const vp=page.getViewport({scale:renderScale});
+
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(vp.width));
+  canvas.height=Math.max(1,Math.round(vp.height));
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+
+  const origDrawImage=ctx.drawImage.bind(ctx);
+  const origPutImageData=ctx.putImageData.bind(ctx);
+
+  const tryPush=(srcCanvas)=>{
+    const w=srcCanvas.width|0,h=srcCanvas.height|0;
+    if(w<8||h<8)return;                    // ignora ruido
+    if(w*h<64)return;
+    const hash=quickHash(srcCanvas);
+    const key=hash+'_'+w+'x'+h;
+    if(seen.has(key))return;
+    seen.add(key);
+    images.push(srcCanvas);
+  };
+
+  const copyToCanvas=(src)=>{
+    if(!src)return null;
+    const w=src.width||src.naturalWidth||0;
+    const h=src.height||src.naturalHeight||0;
+    if(!w||!h)return null;
+    try{
+      const c=document.createElement('canvas');
+      c.width=w;c.height=h;
+      c.getContext('2d',{willReadFrequently:true}).drawImage(src,0,0);
+      return c;
+    }catch(e){ return null; }
+  };
+
+  ctx.drawImage=function(...args){
+    try{
+      const c=copyToCanvas(args[0]);
+      if(c)tryPush(c);
+    }catch(e){}
+    return origDrawImage(...args);
+  };
+  ctx.putImageData=function(id,x,y,...rest){
+    try{
+      if(id&&id.width&&id.height){
+        const c=document.createElement('canvas');
+        c.width=id.width;c.height=id.height;
+        c.getContext('2d',{willReadFrequently:true}).putImageData(id,0,0);
+        tryPush(c);
+      }
+    }catch(e){}
+    return origPutImageData(id,x,y,...rest);
+  };
+
+  try{
+    await page.render({canvasContext:ctx,viewport:vp}).promise;
+  }catch(e){
+    console.warn('[ExtractImages] error al renderizar:',e);
+  }finally{
+    ctx.drawImage=origDrawImage;
+    ctx.putImageData=origPutImageData;
   }
-  return found;
+
+  return images;
 }
 
 async function makeExtractImages(){
@@ -927,7 +955,6 @@ async function makeExtractImages(){
         const canvas=images[j];
         const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
         if(!blob)continue;
-        // Numeración continua dentro del ZIP por página
         const name='pagina-'+String(pageNum).padStart(3,'0')+'_img-'+String(j+1).padStart(2,'0')+'.png';
         zip.file(name,blob);
         totalImages++;
@@ -935,7 +962,7 @@ async function makeExtractImages(){
     }
 
     if(!totalImages){
-      throw new Error('No se encontraron imágenes incrustadas en las páginas seleccionadas. Este PDF puede tener solo texto o gráficos vectoriales. Prueba la herramienta “PDF → Imagen” para renderizar la página completa como imagen.');
+      throw new Error('No se encontraron imágenes incrustadas. Este PDF puede contener solo texto o gráficos vectoriales. Prueba la herramienta “PDF → Imagen” para renderizar la página completa.');
     }
 
     p.set(95,'Comprimiendo ZIP…');
