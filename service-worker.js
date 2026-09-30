@@ -1,4 +1,4 @@
-const CACHE = 'pdf-tools-pepe-v019';
+const CACHE = 'pdf-tools-pepe-v020';
 const APP = [
   './',
   './index.html',
@@ -10,14 +10,17 @@ const APP = [
   './icons/icon-512.png',
   './icons/return.png',
   './icons/tools/combine.png',
+  './icons/tools/deletepage.png',
   './icons/tools/extract.png',
   './icons/tools/html2pdf.png',
   './icons/tools/image2pdf.png',
   './icons/tools/merge.png',
   './icons/tools/pdf2image.png',
+  './icons/tools/reorder.png',
   './icons/tools/signature.png',
   './icons/tools/text2pdf.png',
   './icons/tools/txt2pdf.png',
+  './icons/tools/watermark.png',
   './icons/tools/web2pdf.png'
 ];
 const CDN = [

@@ -118,7 +118,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 16px 24px}
 
 .sig-wrap{position:relative;display:inline-block;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;max-width:100%;line-height:0}
 .sig-wrap canvas{display:block;max-width:100%;height:auto}
-.sig-wrap .sig-item{position:absolute;left:0;top:0;cursor:move;user-select:none;touch-action:none;display:none;transform-origin:center center}
+.sig-wrap .sig-item{position:absolute;left:0;top:0;cursor:move;user-select:none;touch-action:none;display:none;transform-origin:center center;z-index:2}
 .sig-wrap .sig-item img{display:block;width:100%;height:100%;pointer-events:none}
 .sig-wrap .sig-item.active{outline:1px dashed var(--accent)}
 .sig-handle{position:absolute;width:18px;height:18px;border:2px solid var(--accent);background:#fff;border-radius:50%;display:none;z-index:5;touch-action:none}
@@ -140,7 +140,23 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 16px 24px}
 .bullet-menu button:hover{background:var(--surface2)}
 .bullet-menu button.on{background:var(--accent);color:white}
 
-@media(max-width:560px){.grid{grid-template-columns:1fr 1fr}.thumbs{grid-template-columns:repeat(2,minmax(0,1fr))}.row{grid-template-columns:1fr}h1{font-size:13px}header p{font-size:10px}}
+/* Reordenar */
+.reorder-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.reorder-card{border:2px solid var(--border);background:var(--surface);border-radius:12px;padding:6px;text-align:center;position:relative}
+.reorder-card.dragging{opacity:.45}
+.reorder-card.drop-target{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
+.reorder-card canvas{display:block;width:100%;height:auto;background:white;border-radius:6px;cursor:grab}
+.reorder-card .ord{display:inline-block;margin-top:5px;padding:2px 8px;background:var(--accent);color:white;border-radius:999px;font-size:11px;font-weight:700}
+.reorder-card .orig{display:block;margin-top:2px;color:var(--muted);font-size:10px}
+.reorder-card .nav{display:flex;gap:4px;justify-content:center;margin-top:6px}
+.reorder-card .nav button{width:26px;height:26px;border:1px solid var(--border);background:var(--surface2);border-radius:6px;cursor:pointer;color:var(--text);padding:0;font-size:13px}
+
+/* Marca de agua */
+.wm-tabs{display:flex;gap:6px;margin-top:10px}
+.wm-tabs button{flex:1;padding:8px;border:1px solid var(--border);background:var(--surface2);border-radius:10px;cursor:pointer;color:var(--text);font-size:12px}
+.wm-tabs button.on{background:var(--accent);color:white;border-color:var(--accent)}
+
+@media(max-width:560px){.grid{grid-template-columns:1fr 1fr}.thumbs{grid-template-columns:repeat(2,minmax(0,1fr))}.row{grid-template-columns:1fr}h1{font-size:13px}header p{font-size:10px}.reorder-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(min-width:700px){.thumbs{grid-template-columns:repeat(5,minmax(0,1fr))}}
 </style>
 </head>
@@ -171,11 +187,14 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 16px 24px}
 <div class="grid">
 <button class="card" data-tool="extract"><div class="icon"><img src="./icons/tools/extract.png" alt=""></div><strong>Extraer páginas</strong><span>Vista previa, selección visual y rangos.</span></button>
 <button class="card" data-tool="merge"><div class="icon"><img src="./icons/tools/merge.png" alt=""></div><strong>Unir PDF</strong><span>Combina varios PDF y cambia su orden.</span></button>
+<button class="card" data-tool="reorder"><div class="icon"><img src="./icons/tools/reorder.png" alt=""></div><strong>Reordenar páginas</strong><span>Arrastra o usa las flechas para cambiar el orden.</span></button>
+<button class="card" data-tool="deletepage"><div class="icon"><img src="./icons/tools/deletepage.png" alt=""></div><strong>Borrar páginas</strong><span>Elimina una o varias páginas del PDF.</span></button>
 <button class="card" data-tool="image"><div class="icon"><img src="./icons/tools/pdf2image.png" alt=""></div><strong>PDF → Imagen</strong><span>JPG o PNG con DPI configurable.</span></button>
 <button class="card" data-tool="imagepdf"><div class="icon"><img src="./icons/tools/image2pdf.png" alt=""></div><strong>Imagen → PDF</strong><span>Tamaño de hoja y tamaño de imagen configurables.</span></button>
 <button class="card" data-tool="mixpdf"><div class="icon"><img src="./icons/tools/combine.png" alt=""></div><strong>Combinar en PDF</strong><span>Imágenes, TXT y PDF en un solo archivo.</span></button>
 <button class="card" data-tool="extractimg"><div class="icon"><img src="./icons/tools/pdf2image.png" alt=""></div><strong>Extraer Imágenes</strong><span>Extrae las imágenes incrustadas en un PDF.</span></button>
 <button class="card" data-tool="signature"><div class="icon"><img src="./icons/tools/signature.png" alt=""></div><strong>Firmar PDF</strong><span>Dibuja tu firma y colócala en el PDF.</span></button>
+<button class="card" data-tool="watermark"><div class="icon"><img src="./icons/tools/watermark.png" alt=""></div><strong>Marca de agua</strong><span>Texto, imagen o PDF superpuesto en las páginas.</span></button>
 <button class="card" data-tool="textedit"><div class="icon"><img src="./icons/tools/text2pdf.png" alt=""></div><strong>Texto a PDF</strong><span>Editor con formato: negrita, colores, listas y más.</span></button>
 <button class="card" data-tool="web"><div class="icon"><img src="./icons/tools/web2pdf.png" alt=""></div><strong>Página Web a PDF</strong><span>Convierte una URL a PDF.</span></button>
 <button class="card" data-tool="txt"><div class="icon"><img src="./icons/tools/txt2pdf.png" alt=""></div><strong>TXT → PDF</strong><span>Convierte texto plano a PDF localmente.</span></button>
@@ -184,12 +203,12 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 16px 24px}
 <div class="section">Privacidad</div><div class="panel"><strong>Procesamiento en el dispositivo</strong><div class="note">Los archivos seleccionados se procesan localmente en su dispositivo, ninguno se sube a algún servidor externo, por lo que no se comparten con nadie.</div></div>
 </section>
 <section id="tool" class="hidden"><div class="panel" style="margin-top:12px"><h2 id="toolTitle" style="margin:0 0 5px;font-size:20px"></h2><p id="toolDesc" style="margin:0;color:var(--muted);font-size:13px"></p><div class="drop" id="drop"><div style="font-size:30px">📂</div><strong id="dropText">Seleccionar archivo</strong><div><input id="file" type="file" hidden><button class="secondary" id="pick">Elegir archivo</button></div><p>También puedes arrastrar y soltar archivos.</p></div><div id="options"></div><div id="preview"></div></div></section>
-</main><footer>Kit de Herramientas PDF PePe© 2026 · v0.19</footer>
+</main><footer>Kit de Herramientas PDF PePe© 2026 · v0.20</footer>
 </div>
 
 <script>
 const CDN={pdfLib:'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',pdfjs:'https://unpkg.com/pdfjs-dist@5.4.624/legacy/build/pdf.mjs',worker:'https://unpkg.com/pdfjs-dist@5.4.624/legacy/build/pdf.worker.mjs',jszip:'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'};
-const CACHE_NAME='pdf-tools-pepe-v019';
+const CACHE_NAME='pdf-tools-pepe-v020';
 const netBadge=document.getElementById('net'),engine=document.getElementById('engine');
 function updateNetwork(){const on=navigator.onLine;netBadge.textContent=on?'● En línea':'● Sin conexión';netBadge.style.color=on?'var(--muted)':'var(--danger)'}
 addEventListener('online',updateNetwork);addEventListener('offline',updateNetwork);updateNetwork();
@@ -239,11 +258,14 @@ const CM = 28.3464567;
 const tools={
   extract:    {title:'Extraer páginas',desc:'Selecciona páginas visualmente o mediante rangos y genera un PDF nuevo.'},
   merge:      {title:'Unir PDF',desc:'Selecciona varios PDF, cambia el orden y crea un solo archivo.'},
+  reorder:    {title:'Reordenar páginas',desc:'Cambia el orden de las páginas del PDF con arrastrar y soltar o con las flechas.'},
+  deletepage: {title:'Borrar páginas',desc:'Elimina una o varias páginas del PDF.'},
   image:      {title:'PDF → Imagen',desc:'Exporta páginas a JPG o PNG con resolución configurable.'},
   imagepdf:   {title:'Imagen → PDF',desc:'Convierte una o varias imágenes en un PDF, con tamaño de hoja e imagen independientes.'},
   mixpdf:     {title:'Combinar en PDF',desc:'Mezcla imágenes, archivos TXT y PDF en un único PDF, en el orden que elijas.'},
   extractimg: {title:'Extraer Imágenes',desc:'Extrae las imágenes incrustadas en un PDF. Selecciona las páginas de las que quieres extraer.'},
   signature:  {title:'Firmar PDF',desc:'Dibuja tu firma con el dedo o el ratón y colócala en el PDF donde quieras.'},
+  watermark:  {title:'Marca de agua',desc:'Inserta un texto, imagen o PDF como marca de agua en las páginas del documento.'},
   textedit:   {title:'Texto a PDF',desc:'Escribe o pega texto, dale formato y guárdalo como PDF.'},
   web:        {title:'Página Web a PDF',desc:'Pega una URL y guárdala como PDF con tamaño de pantalla, hoja, orientación y margen configurables.'},
   txt:        {title:'TXT → PDF',desc:'Convierte texto plano a PDF con paginación automática.'},
@@ -258,6 +280,17 @@ let _sigPageCanvas=null, _sigPageNum=null, _sigScale=1;
 let _sigColor='#0b1220';
 let _sigAngle=0;
 let _sigXcm=10, _sigYcm=3, _sigWcm=5, _sigHcm=2.5;
+
+// Reordenar / borrar
+let _reorderOrder=[];      // [1,3,2,...] índice original de cada slot
+let _reorderScale=1;
+let _deleteSet=new Set();  // páginas marcadas para borrar
+
+// Marca de agua
+let _wmType='text';        // 'text' | 'image' | 'pdf'
+let _wmImageBytes=null;    // Uint8Array (PNG/JPEG) cuando es imagen
+let _wmPdfBytes=null;      // Uint8Array cuando es PDF
+let _wmPdfPageNum=1;       // página del PDF usado como sello
 
 const home=document.querySelector('#home'),tool=document.querySelector('#tool'),title=document.querySelector('#toolTitle'),desc=document.querySelector('#toolDesc'),file=document.querySelector('#file'),pick=document.querySelector('#pick'),drop=document.querySelector('#drop'),options=document.querySelector('#options'),preview=document.querySelector('#preview');
 const navBtn=document.querySelector('#navBtn');
@@ -275,14 +308,15 @@ drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag'
    ========================================================================== */
 (function setupSplash(){
   const MIN_MS = 2000;
+  const splash = document.getElementById('app-splash');
+  if(!splash) return;
+  const start = performance.now();
   const hide = () => {
-    const s = document.getElementById('app-splash');
-    if(!s) return;
-    s.classList.add('hide');
-    setTimeout(()=>{ try{s.remove()}catch(_){} }, 400);
+    if(!splash.isConnected) return;
+    splash.classList.add('hide');
+    setTimeout(()=>{ try{splash.remove()}catch(_){} }, 400);
   };
   const arm = () => {
-    const start = window.__splashStart || performance.now();
     const elapsed = performance.now() - start;
     const wait = Math.max(0, MIN_MS - elapsed);
     setTimeout(hide, wait);
@@ -292,6 +326,7 @@ drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag'
   }else{
     arm();
   }
+  setTimeout(hide, 3500);
   setTimeout(hide, 6000);
 })();
 
@@ -335,6 +370,9 @@ function reset(){
   _sigPageCanvas=null;_sigPageNum=null;_sigScale=1;
   _sigColor='#0b1220';_sigAngle=0;
   _sigXcm=10;_sigYcm=3;_sigWcm=5;_sigHcm=2.5;
+  _reorderOrder=[];_reorderScale=1;
+  _deleteSet=new Set();
+  _wmType='text';_wmImageBytes=null;_wmPdfBytes=null;_wmPdfPageNum=1;
 }
 function revokeThumbs(){thumbUrls.forEach(u=>{try{URL.revokeObjectURL(u)}catch(_){}});thumbUrls=[]}
 
@@ -348,7 +386,7 @@ function openTool(k){
   desc.textContent=tools[k].desc;
   file.multiple=(k==='merge'||k==='imagepdf'||k==='mixpdf');
   file.accept=
-    (k==='extract'||k==='merge'||k==='image'||k==='extractimg'||k==='signature')?'application/pdf':
+    (k==='extract'||k==='merge'||k==='image'||k==='extractimg'||k==='signature'||k==='reorder'||k==='deletepage'||k==='watermark')?'application/pdf':
     (k==='imagepdf')?'image/*':
     (k==='mixpdf')?'application/pdf,image/*,.txt,text/plain':
     (k==='txt')?'.txt,text/plain':
@@ -359,6 +397,9 @@ function openTool(k){
     k==='imagepdf'?'Seleccionar imágenes':
     k==='signature'?'Seleccionar el PDF a firmar':
     k==='extractimg'?'Seleccionar el PDF del que extraer imágenes':
+    k==='reorder'?'Seleccionar el PDF a reordenar':
+    k==='deletepage'?'Seleccionar el PDF':
+    k==='watermark'?'Seleccionar el PDF donde poner la marca':
     'Seleccionar archivo';
   if(k==='textedit'||k==='web') drop.classList.add('hidden');
   else drop.classList.remove('hidden');
@@ -412,6 +453,44 @@ function renderOptions(){
     options.innerHTML='<p class="note" style="margin-top:8px">Pulsa las miniaturas para seleccionar las páginas de las que quieres extraer las imágenes incrustadas.</p><div class="actions"><button class="secondary" id="all" type="button">Todas</button><button class="secondary" id="none" type="button">Ninguna</button></div>';
   }
 
+  if(current==='reorder'){
+    options.innerHTML=
+      '<p class="note" style="margin-top:8px">Arrastra una miniatura sobre otra para intercambiar posiciones, o usa las flechas ← → debajo de cada página.</p>'+
+      '<div class="actions">'+
+        '<button class="secondary" type="button" id="reo-reset">Restablecer orden</button>'+
+        '<button class="secondary" type="button" id="reo-reverse">Invertir</button>'+
+      '</div>';
+    const resetBtn=options.querySelector('#reo-reset');
+    const revBtn=options.querySelector('#reo-reverse');
+    if(resetBtn)resetBtn.onclick=()=>{
+      _reorderOrder=[...Array(pdfDoc.numPages)].map((_,i)=>i+1);
+      renderReorderGrid();
+    };
+    if(revBtn)revBtn.onclick=()=>{
+      _reorderOrder.reverse();
+      renderReorderGrid();
+    };
+  }
+
+  if(current==='deletepage'){
+    options.innerHTML=
+      '<p class="note" style="margin-top:8px">Pulsa las miniaturas para marcar las páginas a eliminar. Las marcadas se muestran con un borde rojo.</p>'+
+      '<div class="actions">'+
+        '<button class="secondary" type="button" id="del-all">Marcar todas</button>'+
+        '<button class="secondary" type="button" id="del-none">Desmarcar todas</button>'+
+        '<button class="danger" type="button" id="del-apply">Borrar seleccionadas</button>'+
+      '</div>';
+    options.querySelector('#del-all').onclick=()=>{
+      _deleteSet=new Set(Array.from({length:pdfDoc.numPages},(_,i)=>i+1));
+      renderDeleteGrid();
+    };
+    options.querySelector('#del-none').onclick=()=>{
+      _deleteSet.clear();
+      renderDeleteGrid();
+    };
+    options.querySelector('#del-apply').onclick=()=>applyDeletePages().catch(e=>{if(e.message!=='__CANCEL__')msg(e.message)});
+  }
+
   if(current==='image')options.innerHTML='<div class="row"><label>Formato<select id="fmt" class="field"><option>JPG</option><option>PNG</option></select></label><label>Resolución<select id="dpi" class="field"><option>72</option><option>96</option><option>150</option><option>200</option><option selected>300</option><option>600</option></select></label></div>';
 
   if(current==='imagepdf'){
@@ -450,6 +529,18 @@ function renderOptions(){
       '<div class="section" style="margin-top:6px">1. Dibuja tu firma</div>'+
       '<canvas id="sigCanvas" style="width:100%;height:170px;background:#fff;border:1.5px dashed var(--border);border-radius:12px;touch-action:none;display:block;cursor:crosshair"></canvas>'+
       '<div class="actions"><button class="secondary" type="button" id="sigClear">Limpiar</button></div>';
+  }
+
+  if(current==='watermark'){
+    options.innerHTML=
+      '<div class="section" style="margin-top:6px">1. Tipo de marca</div>'+
+      '<div class="wm-tabs">'+
+        '<button type="button" data-wm="text" class="on">Texto</button>'+
+        '<button type="button" data-wm="image">Imagen</button>'+
+        '<button type="button" data-wm="pdf">PDF</button>'+
+      '</div>'+
+      '<div id="wm-body" style="margin-top:10px"></div>';
+    wireWatermarkTabs();
   }
 
   if(current==='textedit'){
@@ -543,6 +634,86 @@ function renderOptions(){
 }
 
 /* ==========================================================================
+   Marca de agua: pestañas y opciones
+   ========================================================================== */
+function wireWatermarkTabs(){
+  const tabs=options.querySelectorAll('.wm-tabs button');
+  tabs.forEach(btn=>{
+    btn.onclick=()=>{
+      tabs.forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on');
+      _wmType=btn.dataset.wm;
+      renderWatermarkBody();
+    };
+  });
+  renderWatermarkBody();
+}
+
+function renderWatermarkBody(){
+  const body=document.querySelector('#wm-body');
+  if(!body)return;
+  if(_wmType==='text'){
+    body.innerHTML=
+      '<label style="display:block;font-size:12px;color:var(--muted)">Texto'+
+        '<input id="wm-text" class="field" type="text" placeholder="CONFIDENCIAL" value="CONFIDENCIAL">'+
+      '</label>'+
+      '<div class="row">'+
+        '<label>Tamaño de letra (pt)<input id="wm-size" class="field" type="number" min="8" max="200" step="1" value="60"></label>'+
+        '<label>Color<input id="wm-color" class="field" type="color" value="#666666" style="height:42px;padding:3px"></label>'+
+      '</div>';
+  }else if(_wmType==='image'){
+    body.innerHTML=
+      '<label style="display:block;font-size:12px;color:var(--muted)">Imagen (PNG o JPG)'+
+        '<input id="wm-image" class="field" type="file" accept="image/png,image/jpeg">'+
+      '</label>'+
+      '<div class="row">'+
+        '<label>Ancho (cm)<input id="wm-iw" class="field" type="number" min="1" step="0.1" value="6"></label>'+
+        '<label>Alto (cm)<input id="wm-ih" class="field" type="number" min="1" step="0.1" value="6"></label>'+
+      '</div>';
+    const inp=body.querySelector('#wm-image');
+    inp.onchange=async()=>{
+      const f=inp.files&&inp.files[0];
+      if(!f)return;
+      _wmImageBytes=new Uint8Array(await f.arrayBuffer());
+    };
+  }else if(_wmType==='pdf'){
+    body.innerHTML=
+      '<label style="display:block;font-size:12px;color:var(--muted)">PDF a superponer'+
+        '<input id="wm-pdf" class="field" type="file" accept="application/pdf">'+
+      '</label>'+
+      '<label style="display:block;font-size:12px;color:var(--muted);margin-top:6px">Página del PDF a usar'+
+        '<input id="wm-ppage" class="field" type="number" min="1" step="1" value="1">'+
+      '</label>'+
+      '<div class="row">'+
+        '<label>Ancho (cm)<input id="wm-iw" class="field" type="number" min="1" step="0.1" value="10"></label>'+
+        '<label>Alto (cm)<input id="wm-ih" class="field" type="number" min="1" step="0.1" value="10"></label>'+
+      '</div>';
+    const inp=body.querySelector('#wm-pdf');
+    inp.onchange=async()=>{
+      const f=inp.files&&inp.files[0];
+      if(!f)return;
+      _wmPdfBytes=new Uint8Array(await f.arrayBuffer());
+    };
+    const pg=body.querySelector('#wm-ppage');
+    pg.oninput=()=>{_wmPdfPageNum=Math.max(1,parseInt(pg.value,10)||1)};
+  }
+  // Opciones comunes (opacidad, rotación, mosaico)
+  const common=document.createElement('div');
+  common.innerHTML=
+    '<div class="row">'+
+      '<label>Opacidad (0–1)<input id="wm-opacity" class="field" type="number" min="0.05" max="1" step="0.05" value="0.25"></label>'+
+      '<label>Rotación (°)<input id="wm-rot" class="field" type="number" min="-180" max="180" step="1" value="45"></label>'+
+    '</div>'+
+    '<label style="display:block;font-size:12px;color:var(--muted);margin-top:6px">Páginas (deja vacío para todas)'+
+      '<input id="wm-pages" class="field" type="text" placeholder="Ej.: 1,3,5-8">'+
+    '</label>'+
+    '<div class="actions"><button class="primary" type="button" id="wm-apply">Aplicar marca de agua</button></div>'+
+    '<p class="note" style="margin-top:10px">La marca se dibuja <b>encima</b> del contenido, con la opacidad y rotación indicadas. Se coloca centrada en cada página seleccionada.</p>';
+  body.appendChild(common);
+  body.querySelector('#wm-apply').onclick=()=>applyWatermark().catch(e=>{if(e.message!=='__CANCEL__')msg(e.message)});
+}
+
+/* ==========================================================================
    Gestión de archivos
    ========================================================================== */
 async function showFiles(fs){
@@ -566,6 +737,9 @@ async function showFiles(fs){
     if(current==='extract'){if(!isPdf(fs[0]))return msg('Selecciona un PDF.');await loadPdf(fs[0]);return}
     if(current==='extractimg'){if(!isPdf(fs[0]))return msg('Selecciona un PDF.');await loadPdf(fs[0]);return}
     if(current==='image'){if(!isPdf(fs[0]))return msg('Selecciona un PDF.');await loadPdf(fs[0]);return}
+    if(current==='reorder'){if(!isPdf(fs[0]))return msg('Selecciona un PDF.');await loadReorderPdf(fs[0]);return}
+    if(current==='deletepage'){if(!isPdf(fs[0]))return msg('Selecciona un PDF.');await loadDeletePdf(fs[0]);return}
+    if(current==='watermark'){if(!isPdf(fs[0]))return msg('Selecciona un PDF.');await loadWatermarkPdf(fs[0]);return}
     if(current==='imagepdf'){
       const bad=fs.find(f=>!(f.type.startsWith('image/')||/\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(f.name)));
       if(bad)return msg('Selecciona imágenes: '+bad.name);
@@ -701,14 +875,9 @@ function togglePage(n,b){selected.has(n)?selected.delete(n):selected.add(n);b.cl
 function parseRange(s,max){if(!s.trim())return[...selected].sort((a,b)=>a-b);const out=new Set();for(const part of s.split(',')){const p=part.trim();if(/^\d+$/.test(p)){const n=+p;if(n>=1&&n<=max)out.add(n)}else if(/^(\d+)-(\d+)$/.test(p)){let[a,b]=p.split('-').map(Number);if(a>b)[a,b]=[b,a];for(let n=Math.max(1,a);n<=Math.min(max,b);n++)out.add(n)}}return[...out].sort((a,b)=>a-b)}
 function busy(t='Procesando…'){cancelled=false;const d=document.createElement('div');d.className='progressWrap';d.innerHTML='<div class="progressBar"><i></i></div><div class="progressLine"><span class="statusText">'+esc(t)+'</span><button class="danger mini" type="button">Cancelar</button></div>';preview.appendChild(d);const btn=d.querySelector('button');btn.onclick=()=>{cancelled=true;btn.disabled=true;d.querySelector('.statusText').textContent='Cancelando…'};return{el:d,set(v,t){d.querySelector('i').style.width=Math.max(0,Math.min(100,v))+'%';if(t)d.querySelector('.statusText').textContent=t},done(t){d.querySelector('i').style.width='100%';d.querySelector('.statusText').textContent=t;btn.remove()},check(){if(cancelled)throw new Error('__CANCEL__')}}}
 
-/**
- * Descarga con diálogo nativo de "Guardar como" cuando el navegador lo soporte.
- * Si no, cae al prompt clásico + descarga directa.
- */
 async function dl(bytes,name,type='application/pdf'){
   const blob=new Blob([bytes],{type});
   const cleanName=String(name||'archivo').trim()||'archivo';
-  // 1) Diálogo nativo "Guardar como" (Chrome/Edge de escritorio y Android moderno)
   if(typeof window.showSaveFilePicker==='function'){
     try{
       const ext=(cleanName.split('.').pop()||'pdf').toLowerCase();
@@ -729,10 +898,8 @@ async function dl(bytes,name,type='application/pdf'){
       return true;
     }catch(e){
       if(e&&e.name==='AbortError')return false;
-      // Si falla por otra razón, cae al método clásico
     }
   }
-  // 2) Fallback clásico
   let filename=cleanName;
   try{
     const input=window.prompt('Nombre del archivo:',cleanName);
@@ -910,7 +1077,7 @@ async function makeImages(){
 }
 
 /* ==========================================================================
-   EXTRAER IMÁGENES — v4 (bitmap nativo, sin escalado)
+   EXTRAER IMÁGENES
    ========================================================================== */
 function nativeSize(src){
   if(!src) return null;
@@ -963,7 +1130,6 @@ async function extractImagesFromPage(page){
     images.push(srcCanvas);
   };
 
-  // Copia SIEMPRE al tamaño nativo del bitmap fuente, no al tamaño en pantalla.
   const copyAtNativeSize=(src)=>{
     const nat=nativeSize(src);
     if(!nat||!nat.w||!nat.h)return null;
@@ -1040,11 +1206,260 @@ async function makeExtractImages(){
     p.set(95,'Comprimiendo ZIP…');
     const zipBlob=await zip.generateAsync({type:'blob'});
     await dl(await zipBlob.arrayBuffer(),'imagenes_extraidas.zip','application/zip');
-    p.done('Extraídas '+totalImages+' imágenes de '+pagesWithImages+' página(s).');
+    p.done('Extraídas '+totalImages+' imágenes de '+pagesWithImageс__pagesCount(pagesWithImages)+'.');
   }catch(e){
     if(e.message==='__CANCEL__')p.done('Operación cancelada.');
     else{p.done('Error');throw e}
   }
+}
+function pagesWithImageс__pagesCount(n){return n+' página(s)'}
+
+/* ==========================================================================
+   REORDENAR PÁGINAS
+   ========================================================================== */
+async function loadReorderPdf(f){
+  await window.__enginesReady;
+  if(!window.PDFLib||!window.pdfjsLib)throw new Error('Motores PDF no disponibles');
+  preview.innerHTML='<div class="status">Cargando PDF…</div>';
+  try{
+    pdfDoc=await window.pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;
+    _reorderOrder=Array.from({length:pdfDoc.numPages},(_,i)=>i+1);
+    renderReorderGrid();
+  }catch(e){msg('No se pudo abrir el PDF: '+e.message)}
+}
+
+function renderReorderGrid(){
+  preview.innerHTML='<div class="section">Reordenar páginas ('+pdfDoc.numPages+')</div><div class="reorder-grid" id="reoGrid"></div>';
+  const grid=preview.querySelector('#reoGrid');
+  _reorderOrder.forEach((origPage,index)=>{
+    const d=document.createElement('div');
+    d.className='reorder-card';
+    d.draggable=true;
+    d.dataset.idx=index;
+    d.dataset.orig=origPage;
+    d.innerHTML=
+      '<canvas></canvas>'+
+      '<span class="ord">'+ (index+1) +'</span>'+
+      '<span class="orig">original: pág '+origPage+'</span>'+
+      '<div class="nav">'+
+        '<button type="button" data-a="left" title="Mover a la izquierda">←</button>'+
+        '<button type="button" data-a="right" title="Mover a la derecha">→</button>'+
+      '</div>';
+    grid.appendChild(d);
+    const canvas=d.querySelector('canvas');
+    renderThumbOnPage(pdfDoc,origPage,canvas);
+    d.querySelector('[data-a="left"]').onclick=()=>reorderMove(index,-1);
+    d.querySelector('[data-a="right"]').onclick=()=>reorderMove(index,1);
+    d.addEventListener('dragstart',(e)=>{d.classList.add('dragging');e.dataTransfer.setData('text/plain',String(index))});
+    d.addEventListener('dragend',()=>{d.classList.remove('dragging');grid.querySelectorAll('.drop-target').forEach(x=>x.classList.remove('drop-target'))});
+    d.addEventListener('dragover',(e)=>{e.preventDefault();d.classList.add('drop-target')});
+    d.addEventListener('dragleave',()=>d.classList.remove('drop-target'));
+    d.addEventListener('drop',(e)=>{
+      e.preventDefault();
+      const from=parseInt(e.dataTransfer.getData('text/plain'),10);
+      const to=index;
+      if(!isNaN(from)&&from!==to){
+        const moved=_reorderOrder.splice(from,1)[0];
+        _reorderOrder.splice(to,0,moved);
+        renderReorderGrid();
+      }
+    });
+  });
+  // Botón para aplicar el nuevo orden
+  const d=document.createElement('div');
+  d.className='actions';
+  const b=document.createElement('button');
+  b.className='primary';b.type='button';b.textContent='Guardar nuevo orden';
+  b.onclick=()=>applyReorder().catch(e=>{if(e.message!=='__CANCEL__')msg(e.message)});
+  d.appendChild(b);
+  preview.appendChild(d);
+}
+function reorderMove(i,delta){
+  const j=i+delta;
+  if(j<0||j>=_reorderOrder.length)return;
+  [_reorderOrder[i],_reorderOrder[j]]=[_reorderOrder[j],_reorderOrder[i]];
+  renderReorderGrid();
+}
+async function renderThumbOnPage(doc,pageNum,canvas){
+  try{
+    const p=await doc.getPage(pageNum);
+    const v=p.getViewport({scale:.45});
+    canvas.width=v.width;canvas.height=v.height;
+    await p.render({canvasContext:canvas.getContext('2d'),viewport:v}).promise;
+  }catch(e){}
+}
+async function applyReorder(){
+  const p=busy('Aplicando orden…');
+  try{
+    const src=await PDFLib.PDFDocument.load(await loadedFiles[0].arrayBuffer(),{ignoreEncryption:true});
+    const out=await PDFLib.PDFDocument.create();
+    const zeroIdx=_reorderOrder.map(n=>n-1);
+    const copied=await out.copyPages(src,zeroIdx);
+    copied.forEach((pg,i)=>{p.check();out.addPage(pg);p.set(30+i/copied.length*60,'Añadiendo página '+(i+1)+'…')});
+    p.set(95,'Guardando…');
+    await dl(await out.save(),base(loadedFiles[0].name)+'_reordenado.pdf');
+    p.done('PDF reordenado correctamente.');
+  }catch(e){
+    if(e.message==='__CANCEL__')p.done('Operación cancelada.');
+    else{p.done('Error');throw e}
+  }
+}
+
+/* ==========================================================================
+   BORRAR PÁGINAS
+   ========================================================================== */
+async function loadDeletePdf(f){
+  await window.__enginesReady;
+  if(!window.PDFLib||!window.pdfjsLib)throw new Error('Motores PDF no disponibles');
+  preview.innerHTML='<div class="status">Cargando PDF…</div>';
+  try{
+    pdfDoc=await window.pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;
+    _deleteSet=new Set();
+    renderDeleteGrid();
+  }catch(e){msg('No se pudo abrir el PDF: '+e.message)}
+}
+
+function renderDeleteGrid(){
+  preview.innerHTML='<div class="section">Páginas: '+pdfDoc.numPages+' · marcadas para borrar: '+_deleteSet.size+'</div><div class="thumbs" id="delGrid"></div>';
+  const grid=preview.querySelector('#delGrid');
+  for(let n=1;n<=pdfDoc.numPages;n++){
+    const b=document.createElement('button');
+    b.className='thumb'+( _deleteSet.has(n) ? ' selected' : '' );
+    if(_deleteSet.has(n))b.style.borderColor='var(--danger)';
+    b.innerHTML='<canvas></canvas><small>Página '+n+'</small>';
+    if(_deleteSet.has(n))b.insertAdjacentHTML('beforeend','<span class="check" style="background:var(--danger)">✕</span>');
+    b.onclick=()=>{ _deleteSet.has(n) ? _deleteSet.delete(n) : _deleteSet.add(n); renderDeleteGrid(); };
+    grid.appendChild(b);
+    renderThumbOnPage(pdfDoc,n,b.querySelector('canvas'));
+  }
+}
+
+async function applyDeletePages(){
+  if(!_deleteSet.size)throw new Error('Marca al menos una página para borrar.');
+  if(_deleteSet.size>=pdfDoc.numPages)throw new Error('No puedes borrar todas las páginas.');
+  const p=busy('Eliminando páginas…');
+  try{
+    const src=await PDFLib.PDFDocument.load(await loadedFiles[0].arrayBuffer(),{ignoreEncryption:true});
+    const out=await PDFLib.PDFDocument.create();
+    const keep=[];
+    for(let i=1;i<=pdfDoc.numPages;i++) if(!_deleteSet.has(i)) keep.push(i-1);
+    const copied=await out.copyPages(src,keep);
+    copied.forEach((pg,i)=>{p.check();out.addPage(pg);p.set(30+i/copied.length*60,'Reconstruyendo…')});
+    p.set(95,'Guardando…');
+    await dl(await out.save(),base(loadedFiles[0].name)+'_sin_paginas.pdf');
+    p.done('Páginas eliminadas correctamente.');
+  }catch(e){
+    if(e.message==='__CANCEL__')p.done('Operación cancelada.');
+    else{p.done('Error');throw e}
+  }
+}
+
+/* ==========================================================================
+   MARCA DE AGUA
+   ========================================================================== */
+async function loadWatermarkPdf(f){
+  await window.__enginesReady;
+  if(!window.PDFLib||!window.pdfjsLib)throw new Error('Motores PDF no disponibles');
+  preview.innerHTML='<div class="status">Cargando PDF…</div>';
+  try{
+    pdfDoc=await window.pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;
+    preview.innerHTML='<div class="section">Documento cargado: '+pdfDoc.numPages+' páginas</div>'+
+      '<p class="note" style="margin-top:8px">Configura la marca de agua arriba. Se aplicará a las páginas indicadas (o a todas si dejas el campo vacío).</p>';
+  }catch(e){msg('No se pudo abrir el PDF: '+e.message)}
+}
+
+async function applyWatermark(){
+  const pagesInput=document.querySelector('#wm-pages');
+  const opacity=parseFloat(document.querySelector('#wm-opacity').value)||0.25;
+  const rotation=parseFloat(document.querySelector('#wm-rot').value)||0;
+  const pages = pagesInput && pagesInput.value.trim()
+    ? parseRange(pagesInput.value, pdfDoc.numPages)
+    : Array.from({length:pdfDoc.numPages},(_,i)=>i+1);
+  if(!pages.length)throw new Error('No hay páginas donde aplicar la marca.');
+
+  const p=busy('Aplicando marca de agua…');
+  try{
+    const src=await PDFLib.PDFDocument.load(await loadedFiles[0].arrayBuffer(),{ignoreEncryption:true});
+    let textFont=null, textColor=null, textSize=null, textStr=null;
+    let imageEmb=null, wmImgW=0, wmImgH=0;
+
+    if(_wmType==='text'){
+      textStr=document.querySelector('#wm-text').value||'CONFIDENCIAL';
+      textSize=parseFloat(document.querySelector('#wm-size').value)||60;
+      const col=document.querySelector('#wm-color').value||'#666666';
+      textColor=hexToRgb(col);
+      textFont=await src.embedFont(PDFLib.StandardFonts.HelveticaBold);
+    }else if(_wmType==='image'){
+      if(!_wmImageBytes)throw new Error('Selecciona una imagen.');
+      imageEmb=await src.embedPng(_wmImageBytes).catch(async()=>{
+        return await src.embedJpg(_wmImageBytes);
+      });
+      wmImgW=(parseFloat(document.querySelector('#wm-iw').value)||6)*CM;
+      wmImgH=(parseFloat(document.querySelector('#wm-ih').value)||6)*CM;
+    }else if(_wmType==='pdf'){
+      if(!_wmPdfBytes)throw new Error('Selecciona un PDF.');
+      const stampSrc=await PDFLib.PDFDocument.load(_wmPdfBytes,{ignoreEncryption:true});
+      const idx=_wmPdfPageNum-1;
+      const total=stampSrc.getPageCount();
+      const safeIdx=Math.max(0,Math.min(total-1,idx));
+      const [embedded]=await src.embedPdf(_wmPdfBytes,[safeIdx]);
+      imageEmb=embedded;
+      wmImgW=(parseFloat(document.querySelector('#wm-iw').value)||10)*CM;
+      wmImgH=(parseFloat(document.querySelector('#wm-ih').value)||10)*CM;
+    }
+
+    for(let i=0;i<pages.length;i++){
+      p.check();
+      const pageNum=pages[i];
+      const page=src.getPage(pageNum-1);
+      const {width:pgW,height:pgH}=page.getSize();
+
+      if(_wmType==='text'){
+        const tw=textFont.widthOfTextAtSize(safeText(textStr),textSize);
+        const th=textSize;
+        // Centrar y rotar alrededor del centro
+        const cx=pgW/2, cy=pgH/2;
+        const angleRad=rotation*Math.PI/180;
+        const cos=Math.cos(angleRad), sin=Math.sin(angleRad);
+        const x= cx - (tw/2)*cos + (th/2)*sin;
+        const y= cy - (tw/2)*sin - (th/2)*cos;
+        page.drawText(safeText(textStr),{
+          x, y,
+          size: textSize,
+          font: textFont,
+          color: textColor,
+          opacity: Math.max(0,Math.min(1,opacity)),
+          rotate: PDFLib.degrees(rotation)
+        });
+      }else{
+        const x=(pgW-wmImgW)/2;
+        const y=(pgH-wmImgH)/2;
+        page.drawImage(imageEmb,{
+          x, y,
+          width: wmImgW,
+          height: wmImgH,
+          opacity: Math.max(0,Math.min(1,opacity)),
+          rotate: PDFLib.degrees(rotation)
+        });
+      }
+      p.set(30 + (i+1)/pages.length*60,'Página '+pageNum+'…');
+    }
+
+    p.set(95,'Guardando…');
+    await dl(await src.save(),base(loadedFiles[0].name)+'_marca_agua.pdf');
+    p.done('Marca de agua aplicada correctamente.');
+  }catch(e){
+    if(e.message==='__CANCEL__')p.done('Operación cancelada.');
+    else{p.done('Error');throw e}
+  }
+}
+
+function hexToRgb(hex){
+  const m=String(hex).replace('#','');
+  const n=m.length===3
+    ? [parseInt(m[0]+m[0],16),parseInt(m[1]+m[1],16),parseInt(m[2]+m[2],16)]
+    : [parseInt(m.slice(0,2),16),parseInt(m.slice(2,4),16),parseInt(m.slice(4,6),16)];
+  return PDFLib.rgb(n[0]/255,n[1]/255,n[2]/255);
 }
 
 /* ==========================================================================
@@ -1166,7 +1581,7 @@ async function makeTxtPdf(){
 async function printHtml(){const html=await loadedFiles[0].text(),w=window.open('','_blank');if(!w)throw new Error('El navegador bloqueó la ventana de impresión.');w.document.open();w.document.write(html);w.document.close();w.focus();setTimeout(()=>w.print(),500)}
 
 /* ==========================================================================
-   Firmar PDF — con color de lápiz, redimensionado gráfico, rotación y multipágina
+   Firmar PDF — con fix de vista previa visible
    ========================================================================== */
 async function loadSignaturePdf(f){
   await window.__enginesReady;
@@ -1201,7 +1616,6 @@ function renderSignatureConfig(){
     '<div class="actions"><button class="primary" type="button" id="sigInsert">Insertar y guardar</button></div>';
   options.appendChild(rest);
 
-  // Checkboxes de páginas
   const pagesBox=document.querySelector('#sigPages');
   for(let i=1;i<=pdfDoc.numPages;i++){
     const lbl=document.createElement('label');
@@ -1267,7 +1681,6 @@ function setupSignaturePad(){
     updateSignatureImage();
   };
 
-  // Paleta de colores
   const palette=[
     {name:'Negro',color:'#000000'},
     {name:'Blanco',color:'#ffffff'},
@@ -1341,12 +1754,14 @@ function getSignatureDataURL(){
 }
 
 function updateSignatureImage(){
+  const item=document.querySelector('.sig-item');
   const img=document.querySelector('#sigImg');
-  if(!img)return;
+  if(!item||!img)return;
   const url=getSignatureDataURL();
   if(url){
     img.src=url;
     img.style.display='block';
+    item.style.display='block';   // ← FIX: mostraba el contenedor oculto
     const probe=new Image();
     probe.onload=()=>{
       const wCm=parseFloat(document.querySelector('#sigW').value)||5;
@@ -1359,6 +1774,7 @@ function updateSignatureImage(){
     probe.src=url;
   }else{
     img.style.display='none';
+    item.style.display='none';
   }
 }
 
@@ -1428,7 +1844,7 @@ async function renderSignaturePreview(force,pageOverride){
     wrap.appendChild(item);
     container.appendChild(wrap);
 
-    // Mover al tocar dentro
+    // Mover
     item.addEventListener('pointerdown',(e)=>{
       if(e.target.classList.contains('sig-handle'))return;
       if(img.style.display==='none')return;
@@ -1465,7 +1881,6 @@ async function renderSignaturePreview(force,pageOverride){
       item.addEventListener('pointercancel',onUp);
     });
 
-    // Handles de redimensionado y rotación
     item.querySelectorAll('.sig-handle').forEach(h=>{
       h.addEventListener('pointerdown',(e)=>{
         e.preventDefault();
@@ -1494,24 +1909,20 @@ async function renderSignaturePreview(force,pageOverride){
             if(angEl)angEl.value=_sigAngle;
             return;
           }
-          // Redimensión: ancho basado en la distancia horizontal desde el centro
           const mx=ev.clientX-wrapRect.left;
           const dist=Math.abs(mx-cx);
           let newW=Math.max(40,dist*2);
           let newH=newW*ratio;
-          // Limita para no salir del wrap
           newW=Math.min(newW,wrapRect.width);
           newH=Math.min(newH,wrapRect.height);
           item.style.width=newW+'px';
           item.style.height=newH+'px';
-          // Mantén el centro
           let newL=cx-newW/2;
           let newT=cy-newH/2;
           newL=Math.max(0,Math.min(wrapRect.width-newW,newL));
           newT=Math.max(0,Math.min(wrapRect.height-newH,newT));
           item.style.left=newL+'px';
           item.style.top=newT+'px';
-          // Actualiza inputs en cm
           const xI=document.querySelector('#sigX');
           const yI=document.querySelector('#sigY');
           const wI=document.querySelector('#sigW');
@@ -1534,7 +1945,6 @@ async function renderSignaturePreview(force,pageOverride){
       });
     });
 
-    // Click fuera del item para deseleccionar
     wrap.addEventListener('pointerdown',(e)=>{
       if(!item.contains(e.target))item.classList.remove('active');
     });
@@ -1600,7 +2010,6 @@ function wireEditor(){
   document.querySelector('#tb-font').onchange=(e)=>{editor.focus();try{document.execCommand('styleWithCSS',false,true)}catch(_){}try{document.execCommand('fontName',false,e.target.value)}catch(_){}};
   document.querySelector('#tb-size').onchange=(e)=>{editor.focus();applyEditorFontSize(parseInt(e.target.value,10)||14)};
 
-  // Interlineado
   const lh=document.querySelector('#tb-lineheight');
   if(lh) lh.onchange=(e)=>{
     const v=e.target.value;
