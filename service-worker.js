@@ -1,4 +1,4 @@
-const CACHE = 'pdf-tools-pepe-v016';
+const CACHE = 'pdf-tools-pepe-v017';
 const APP = [
   './',
   './index.html',
@@ -8,16 +8,17 @@ const APP = [
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/return.png',
   './icons/tools/combine.png',
-  './icons/tools/text2pdf.png',
-  './icons/tools/image2pdf.PNG',
   './icons/tools/extract.png',
-  './icons/tools/merge.PNG',
-  './icons/tools/html2pdf.PNG',
+  './icons/tools/html2pdf.png',
+  './icons/tools/image2pdf.png',
+  './icons/tools/merge.png',
   './icons/tools/pdf2image.png',
-  './icons/tools/Signature.png',
-  './icons/tools/web2pdf.png',
-  './icons/tools/txt2pdf.png'
+  './icons/tools/signature.png',
+  './icons/tools/text2pdf.png',
+  './icons/tools/txt2pdf.png',
+  './icons/tools/web2pdf.png'
 ];
 const CDN = [
   'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',
@@ -82,7 +83,10 @@ self.addEventListener('fetch', e => {
       }
       return r;
     } catch (err) {
-      if (app) {
+      // Solo devolver index.html como fallback para NAVEGACIONES (deep links).
+      // NUNCA para imágenes, CSS, JS u otros assets: si falla la red para un
+      // asset, la respuesta correcta es dejar que falle, no servir HTML.
+      if (app && req.mode === 'navigate') {
         const fb = (await c.match('./index.html')) || (await c.match('./'));
         if (fb) return fb;
       }
