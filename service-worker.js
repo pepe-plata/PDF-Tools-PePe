@@ -1,4 +1,4 @@
-const CACHE = 'pdf-tools-pepe-v012';
+const CACHE = 'pdf-tools-pepe-v013';
 const APP = [
   './',
   './index.html',
