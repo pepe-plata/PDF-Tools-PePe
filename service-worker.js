@@ -1,11 +1,23 @@
-const CACHE = 'pdf-tools-pepe-v013';
+const CACHE = 'pdf-tools-pepe-v016';
 const APP = [
   './',
   './index.html',
   './manifest.json',
   './service-worker.js',
+  './icons/favicon-32.png',
+  './icons/apple-touch-icon.png',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/tools/combine.png',
+  './icons/tools/text2pdf.png',
+  './icons/tools/image2pdf.PNG',
+  './icons/tools/extract.png',
+  './icons/tools/merge.PNG',
+  './icons/tools/html2pdf.PNG',
+  './icons/tools/pdf2image.png',
+  './icons/tools/Signature.png',
+  './icons/tools/web2pdf.png',
+  './icons/tools/txt2pdf.png'
 ];
 const CDN = [
   'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',
@@ -13,7 +25,6 @@ const CDN = [
   'https://unpkg.com/pdfjs-dist@5.4.624/legacy/build/pdf.worker.mjs',
   'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'
 ];
-// Coincidencia por prefijo: sobrevive a redirecciones, query strings y barras finales.
 const CDN_PREFIX = [
   'https://unpkg.com/pdf-lib@1.17.1/',
   'https://unpkg.com/pdfjs-dist@5.4.624/',
@@ -54,7 +65,7 @@ self.addEventListener('message', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  if (req.headers.has('range')) return;              // deja pasar los Range a la red
+  if (req.headers.has('range')) return;
 
   let u; try { u = new URL(req.url); } catch (_) { return; }
   const app = u.origin === location.origin;
