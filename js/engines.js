@@ -8,7 +8,7 @@ export const CDN = {
   jszip:  'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'
 };
 
-export const CACHE_NAME = 'pdf-tools-pepe-v022';
+export const CACHE_NAME = 'pdf-tools-pepe-v025';
 
 export async function openCache(){
   return 'caches' in window ? caches.open(CACHE_NAME) : null;

@@ -793,6 +793,10 @@ async function boot(){
   dom.drop.addEventListener('drop', e => { e.preventDefault(); dom.drop.classList.remove('drag'); showFiles([...e.dataTransfer.files]); });
 
   updateNavBtn();
+  const versionEl = document.querySelector('footer');
+  if(versionEl){
+    versionEl.textContent = 'Kit de Herramientas PDF PePe© 2026 · v' + (Engines.CACHE_NAME || '').replace('pdf-tools-pepe-v','0.');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', boot);
