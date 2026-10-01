@@ -78,6 +78,7 @@ export const state = {
   // Marca de agua
   _wmType: 'text', _wmImageBytes: null, _wmPdfBytes: null, _wmPdfPageNum: 1,
   _wmPageCanvas: null, _wmPageNum: null, _wmScale: 1,
+  _wmGeom: null,
   // Llenar
   _fillPageCanvas: null, _fillPageNum: null, _fillScale: 1,
   _fillItems: [], _fillSelectedIdx: -1,
@@ -318,6 +319,7 @@ export function reset(){
   state._reorderOrder = []; state._deleteSet = new Set(); state._rotSet = new Set();
   state._wmType = 'text'; state._wmImageBytes = null; state._wmPdfBytes = null; state._wmPdfPageNum = 1;
   state._wmPageCanvas = null; state._wmPageNum = null; state._wmScale = 1;
+  state._wmGeom = null;
   state._fillPageCanvas = null; state._fillPageNum = null; state._fillScale = 1;
   state._fillItems = []; state._fillSelectedIdx = -1;
   state._viewerScale = 1.0; state._viewerPage = 1; state._viewerPanMode = false;
@@ -611,8 +613,12 @@ export function renderOptions(){
             '<button type="button" class="tb-icon-btn" data-cmd="outdent" title="Reducir sangría"><img class="tb-icon" src="./icons/tools/decrease-indent.png" alt=""></button>'+
           '</div>'+
           '<div class="tb-group">'+
-            '<button type="button" class="tb-icon-btn" id="tb-lineheight-btn" title="Interlineado"><img class="tb-icon" src="./icons/tools/line-spacing.png" alt=""></button>'+
-            '<select id="tb-lineheight" title="Interlineado" style="display:none"><option value="">-</option><option value="1">1.0</option><option value="1.15">1.15</option><option value="1.5" selected>1.5</option><option value="2">2.0</option><option value="2.5">2.5</option><option value="3">3.0</option></select>'+
+            '<img class="tb-icon" src="./icons/tools/line-spacing.png" alt="" style="align-self:center;margin:0 4px">'+
+            '<select id="tb-lineheight" title="Interlineado">'+
+              '<option value="1">Sencillo (1.0)</option>'+
+              '<option value="1.5" selected>1.5 Líneas</option>'+
+              '<option value="2">Doble (2.0)</option>'+
+            '</select>'+
           '</div>'+
           '<div class="tb-group">'+
             '<button type="button" class="tb-icon-btn" id="tb-clear" title="Limpiar formato">Tx</button>'+
