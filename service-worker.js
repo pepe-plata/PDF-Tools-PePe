@@ -1,4 +1,4 @@
-const CACHE = 'pdf-tools-pepe-v023';
+const CACHE = 'pdf-tools-pepe-v024';
 const APP = [
   './',
   './index.html',
@@ -8,6 +8,10 @@ const APP = [
   './js/engines.js',
   './js/app.js',
   './js/tools.js',
+  './js/tools-viewer.js',
+  './js/tools-edit.js',
+  './js/tools-annotate.js',
+  './js/tools-editor.js',
   './icons/favicon-32.png',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
