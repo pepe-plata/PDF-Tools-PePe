@@ -257,7 +257,18 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 16px 24px}
 /* ==========================================================================
    Visor PDF v2
    ========================================================================== */
-.viewer-v2{position:fixed;top:0;left:0;right:0;bottom:0;z-index:40;background:#1f2937;display:flex;flex-direction:column;overflow:hidden}
+.viewer-v2{
+  position:fixed;top:0;left:0;right:0;bottom:0;z-index:40;
+  background:rgb(248,248,248);      /* ← el fondo general del visor */
+  display:flex;flex-direction:column;overflow:hidden;
+}
+
+.viewer-v2 .viewer-page{
+  flex:1;overflow:auto;-webkit-overflow-scrolling:touch;
+  background:rgb(248,248,248);      /* ← el área scrolleable alrededor de las hojas */
+  scroll-behavior:smooth;
+  padding:0;
+}
 .viewer-v2 .viewer-topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
 .viewer-v2 .viewer-title{font-size:14px;font-weight:780;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .viewer-v2 .viewer-actions{display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;align-items:center}
@@ -266,12 +277,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 16px 24px}
 .viewer-v2 .viewer-actions button.active{background:var(--accent);color:white;border-color:var(--accent)}
 .viewer-v2 .viewer-counter{font-size:12px;color:var(--muted);padding:0 6px;min-width:64px;text-align:center;white-space:nowrap}
 .viewer-v2 .viewer-counter.zoom{min-width:50px}
-.viewer-v2 .viewer-page{
-  flex:1;overflow:auto;-webkit-overflow-scrolling:touch;
-  background:#374151;
-  scroll-behavior:smooth;
-  padding:0;
-}
+
 .viewer-v2 .viewer-page-wrap{
   display:flex;
   flex-direction:column;
