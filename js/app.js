@@ -72,6 +72,7 @@ export const state = {
   _sigPageCanvas: null, _sigPageNum: null, _sigScale: 1,
   _sigColor: '#0b1220', _sigAngle: 0,
   _sigXcm: 10, _sigYcm: 3, _sigWcm: 5, _sigHcm: 2.5,
+  _sigTool: 'pencil', _sigStroke: '#0b1220', _sigFill: 'transparent', _sigStrokeWidth: 2.4,
   // Reordenar / borrar / rotar
   _reorderOrder: [], _deleteSet: new Set(), _rotSet: new Set(), _rotAngle: 90,
   // Marca de agua
@@ -81,7 +82,8 @@ export const state = {
   _fillPageCanvas: null, _fillPageNum: null, _fillScale: 1,
   _fillItems: [], _fillSelectedIdx: -1,
   // Visor
-  _viewerScale: 1.0, _viewerPage: 1
+  _viewerScale: 1.0, _viewerPage: 1, _viewerPanMode: false,
+  _viewerPageWrappers: []
 };
 
 /* ---------- Referencias DOM ---------- */
@@ -312,12 +314,14 @@ export function reset(){
   state.sigCtx = null; state.sigDrawing = false; state.sigHasStrokes = false;
   state._sigPageCanvas = null; state._sigPageNum = null; state._sigScale = 1; state._sigAngle = 0;
   state._sigColor = '#0b1220'; state._sigXcm = 10; state._sigYcm = 3; state._sigWcm = 5; state._sigHcm = 2.5;
+  state._sigTool = 'pencil'; state._sigStroke = '#0b1220'; state._sigFill = 'transparent'; state._sigStrokeWidth = 2.4;
   state._reorderOrder = []; state._deleteSet = new Set(); state._rotSet = new Set();
   state._wmType = 'text'; state._wmImageBytes = null; state._wmPdfBytes = null; state._wmPdfPageNum = 1;
   state._wmPageCanvas = null; state._wmPageNum = null; state._wmScale = 1;
   state._fillPageCanvas = null; state._fillPageNum = null; state._fillScale = 1;
   state._fillItems = []; state._fillSelectedIdx = -1;
-  state._viewerScale = 1.0; state._viewerPage = 1;
+  state._viewerScale = 1.0; state._viewerPage = 1; state._viewerPanMode = false;
+  state._viewerPageWrappers = [];
 }
 export function revokeThumbs(){
   state.thumbUrls.forEach(u=>{try{URL.revokeObjectURL(u)}catch(_){}});
@@ -364,20 +368,55 @@ export function renderOptions(){
   if(state.current==='divide'){
     dom.options.innerHTML =
       '<div class="row">'+
-        '<label>Modo<select id="div-mode" class="field"><option value="ranges">Rangos personalizados</option><option value="npp">N páginas por archivo</option></select></label>'+
+        '<label>Modo<select id="div-mode" class="field">'+
+          '<option value="ranges">Rangos personalizados</option>'+
+          '<option value="npp">N páginas por archivo</option>'+
+        '</select></label>'+
         '<label id="div-nwrap" style="display:none">Páginas por archivo<input id="div-npp" class="field" type="number" min="1" step="1" value="1"></label>'+
       '</div>'+
-      '<label id="div-ranges-wrap" style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">Rangos (uno por línea, formato <code>nombre:ini-fin</code> o solo <code>ini-fin</code>)'+
-        '<textarea id="div-ranges" class="field" rows="5" placeholder="parte1:1-3&#10;parte2:4-8&#10;9-12"></textarea>'+
-      '</label>'+
-      '<p class="note" style="margin-top:8px">Se generará un ZIP con un PDF por cada rango o bloque.</p>'+
+      '<div id="div-ranges-wrap" style="margin-top:10px">'+
+        '<div class="section" style="margin:0 0 6px">Rangos</div>'+
+        '<table class="ranges-table" id="div-ranges-table">'+
+          '<thead><tr><th style="width:40%">Nombre</th><th style="width:24%">Desde</th><th style="width:24%">Hasta</th><th></th></tr></thead>'+
+          '<tbody></tbody>'+
+        '</table>'+
+        '<div class="ranges-toolbar">'+
+          '<button class="secondary" type="button" id="div-add-range">+ Agregar rango</button>'+
+          '<button class="danger" type="button" id="div-clear-ranges">Borrar todo</button>'+
+        '</div>'+
+      '</div>'+
+      '<p class="note" style="margin-top:10px">Se generará un ZIP con un PDF por cada rango. Los rangos sin nombre se numeran automáticamente.</p>'+
       '<div class="actions"><button class="primary" type="button" id="div-apply">Dividir y descargar ZIP</button></div>';
+
     const mode = dom.options.querySelector('#div-mode');
     mode.onchange = () => {
       const isRanges = mode.value === 'ranges';
       dom.options.querySelector('#div-ranges-wrap').style.display = isRanges?'block':'none';
       dom.options.querySelector('#div-nwrap').style.display = isRanges?'none':'block';
     };
+
+    const tbody = dom.options.querySelector('#div-ranges-table tbody');
+    function addRangeRow(name, from, to){
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input type="text" class="rng-name" placeholder="parte" value="'+esc(name||'')+'"></td>'+
+        '<td><input type="number" class="rng-from" min="1" step="1" value="'+(from||1)+'"></td>'+
+        '<td><input type="number" class="rng-to" min="1" step="1" value="'+(to||'')+'"></td>'+
+        '<td class="actions-cell"><button type="button" title="Eliminar rango">✕</button></td>';
+      tr.querySelector('.actions-cell button').onclick = () => { tr.remove(); };
+      tbody.appendChild(tr);
+    }
+    addRangeRow('parte1', 1, '');
+
+    dom.options.querySelector('#div-add-range').onclick = () => {
+      const n = tbody.children.length + 1;
+      addRangeRow('parte'+n, 1, '');
+    };
+    dom.options.querySelector('#div-clear-ranges').onclick = () => {
+      tbody.innerHTML = '';
+      addRangeRow('parte1', 1, '');
+    };
+
     dom.options.querySelector('#div-apply').onclick = () => Tools.applyDivide().catch(e=>{ if(e.message!=='__CANCEL__')msg(e.message); });
   }
 
@@ -454,39 +493,80 @@ export function renderOptions(){
     const saved = Tools.getSavedSignatures();
     dom.options.innerHTML =
       '<div class="section" style="margin-top:6px">1. Dibuja tu firma</div>'+
-      '<canvas id="sigCanvas" style="width:100%;height:170px;background:#fff;border:1.5px dashed var(--border);border-radius:12px;touch-action:none;display:block;cursor:crosshair"></canvas>'+
+      '<div class="sig-draw-tools" id="sigDrawTools">'+
+        '<button type="button" data-tool="pencil" title="Lápiz">✏️</button>'+
+        '<button type="button" data-tool="rect" title="Rectángulo">▭</button>'+
+        '<button type="button" data-tool="circle" title="Círculo">◯</button>'+
+      '</div>'+
+      '<div class="sig-color-group">'+
+        '<label>Trazo <input type="color" id="sigStrokeColor" value="#0b1220"></label>'+
+        '<label>Grosor <input type="number" id="sigStrokeWidth" min="1" max="20" step="0.5" value="2.4"></label>'+
+        '<label><input type="checkbox" id="sigFillOn"> Relleno <input type="color" id="sigFillColor" value="#ffffff"></label>'+
+      '</div>'+
+      '<canvas id="sigCanvas" style="width:100%;height:170px;background:#fff;border:1.5px dashed var(--border);border-radius:12px;touch-action:none;display:block;cursor:crosshair;margin-top:10px"></canvas>'+
       '<div class="actions">'+
         '<button class="secondary" type="button" id="sigClear">Limpiar</button>'+
         '<button class="secondary" type="button" id="sigSave">Guardar firma</button>'+
       '</div>'+
       (saved.length?
         '<div class="section">Firmas guardadas</div><div class="saved-sigs" id="savedSigs"></div>':
-        '<p class="note" style="margin-top:10px">Aún no has guardado ninguna firma. Pulsa “Guardar firma” después de dibujarla.</p>');
+        '<p class="note" style="margin-top:10px">Aún no has guardado ninguna firma.</p>');
   }
 
   if(state.current==='fill'){
     dom.options.innerHTML =
-      '<div class="section" style="margin-top:6px">Estilo del texto a insertar</div>'+
-      '<div class="row3">'+
-        '<label>Tipo de letra<select id="fl-font" class="field">'+
-          '<option value="Helvetica">Helvetica</option>'+
-          '<option value="TimesRoman">Times</option>'+
-          '<option value="Courier">Courier</option>'+
-        '</select></label>'+
-        '<label>Tamaño (pt)<input id="fl-size" class="field" type="number" min="6" max="200" step="1" value="14"></label>'+
-        '<label>Color<input id="fl-color" class="field" type="color" value="#000000" style="height:42px;padding:3px"></label>'+
+      '<div class="section" style="margin-top:6px">Texto a insertar</div>'+
+      '<div class="fill-editor">'+
+        '<textarea id="fl-text" placeholder="Escribe aquí el texto que se insertará…">Texto nuevo</textarea>'+
+        '<div class="row3">'+
+          '<label>Tipo de letra<select id="fl-font" class="field">'+
+            '<option value="Helvetica">Helvetica</option>'+
+            '<option value="HelveticaBold">Helvetica Negrita</option>'+
+            '<option value="HelveticaOblique">Helvetica Cursiva</option>'+
+            '<option value="TimesRoman">Times New Roman</option>'+
+            '<option value="TimesRomanBold">Times Negrita</option>'+
+            '<option value="TimesRomanItalic">Times Cursiva</option>'+
+            '<option value="Courier">Courier New</option>'+
+            '<option value="CourierBold">Courier Negrita</option>'+
+            '<option value="CourierOblique">Courier Cursiva</option>'+
+            '<option value="Symbol">Symbol</option>'+
+            '<option value="ZapfDingbats">Zapf Dingbats</option>'+
+          '</select></label>'+
+          '<label>Tamaño (pt)<input id="fl-size" class="field" type="number" min="6" max="200" step="1" value="14"></label>'+
+          '<label>Color de letra<input id="fl-color" class="field" type="color" value="#000000" style="height:42px;padding:3px"></label>'+
+        '</div>'+
+        '<div class="row">'+
+          '<label>Color de fondo<div style="display:flex;align-items:center;gap:8px;margin-top:5px">'+
+            '<input type="checkbox" id="fl-bg-on">'+
+            '<input id="fl-bg" type="color" value="#ffff00" style="width:44px;height:32px;border:1px solid var(--border);border-radius:6px;padding:2px">'+
+            '<span class="fill-bg-preview" id="fl-bg-preview" title="Transparente"></span>'+
+          '</div></label>'+
+          '<label>Estilo<select id="fl-style" class="field"><option value="">Normal</option><option value="bold">Negrita</option><option value="italic">Cursiva</option><option value="bolditalic">Negrita + Cursiva</option></select></label>'+
+        '</div>'+
+        '<div class="row">'+
+          '<label>Subrayado<select id="fl-underline" class="field"><option value="0">No</option><option value="1">Sí</option></select></label>'+
+          '<label>&nbsp;<button class="secondary" type="button" id="fl-add" style="width:100%">+ Añadir texto con este estilo</button></label>'+
+        '</div>'+
       '</div>'+
-      '<div class="row">'+
-        '<label>Estilo<select id="fl-style" class="field"><option value="">Normal</option><option value="bold">Negrita</option><option value="italic">Cursiva</option><option value="bolditalic">Negrita + Cursiva</option></select></label>'+
-        '<label>Subrayado<select id="fl-underline" class="field"><option value="0">No</option><option value="1">Sí</option></select></label>'+
-      '</div>'+
+      '<p class="note" style="margin-top:10px">Añade tantos textos como quieras. Arrástralos sobre la vista previa para colocarlos, y usa el handle inferior derecho para cambiar su tamaño. Si seleccionas un texto ya añadido, puedes cambiarle los valores y pulsar “Actualizar seleccionado”.</p>'+
       '<div class="actions">'+
-        '<button class="secondary" type="button" id="fl-add">+ Añadir texto en la posición por defecto</button>'+
-      '</div>'+
-      '<p class="note" style="margin-top:8px">Añade tantos textos como quieras. Arrástralos sobre la vista previa para colocarlos y usa el handle inferior derecho para cambiar su tamaño.</p>';
+        '<button class="secondary" type="button" id="fl-update" style="display:none">Actualizar seleccionado</button>'+
+      '</div>';
+    const bgOn = dom.options.querySelector('#fl-bg-on');
+    const bgInput = dom.options.querySelector('#fl-bg');
+    const bgPreview = dom.options.querySelector('#fl-bg-preview');
+    const syncBg = () => {
+      if(bgOn.checked){ bgPreview.style.background = bgInput.value; bgPreview.title = bgInput.value; }
+      else { bgPreview.style.background = 'transparent'; bgPreview.title = 'Transparente'; }
+    };
+    bgOn.onchange = syncBg; bgInput.oninput = syncBg; syncBg();
+
     dom.options.querySelector('#fl-add').onclick = () => {
       if(!state.pdfDoc){msg('Carga primero un PDF.');return}
       Tools.addFillItem(1);
+    };
+    dom.options.querySelector('#fl-update').onclick = () => {
+      Tools.updateSelectedFillItem();
     };
   }
 
@@ -511,28 +591,31 @@ export function renderOptions(){
             '<select id="tb-size" title="Tamaño"><option value="10">10</option><option value="12" selected>12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="48">48</option><option value="72">72</option><option value="86">86</option></select>'+
           '</div>'+
           '<div class="tb-group">'+
-            '<select id="tb-lineheight" title="Interlineado"><option value="">Interlineado</option><option value="1">1.0</option><option value="1.15">1.15</option><option value="1.5" selected>1.5</option><option value="2">2.0</option><option value="2.5">2.5</option><option value="3">3.0</option></select>'+
-          '</div>'+
-          '<div class="tb-group">'+
-            '<button type="button" data-cmd="bold" title="Negrita"><b>B</b></button>'+
-            '<button type="button" data-cmd="italic" title="Cursiva"><i>I</i></button>'+
-            '<button type="button" data-cmd="underline" title="Subrayado"><u>U</u></button>'+
-            '<button type="button" data-cmd="strikeThrough" title="Tachado"><s>S</s></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="bold" title="Negrita"><img class="tb-icon" src="./icons/tools/bold-text.png" alt=""></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="italic" title="Cursiva"><img class="tb-icon" src="./icons/tools/italic.png" alt=""></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="underline" title="Subrayado"><img class="tb-icon" src="./icons/tools/underline.png" alt=""></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="strikeThrough" title="Tachado"><img class="tb-icon" src="./icons/tools/strikethrough.png" alt=""></button>'+
             '<input type="color" id="tb-fg" value="#000000" title="Color de letra">'+
             '<input type="color" id="tb-bg" value="#ffff00" title="Color de fondo">'+
           '</div>'+
           '<div class="tb-group">'+
-            '<button type="button" data-cmd="justifyLeft" title="Izquierda">⯇</button>'+
-            '<button type="button" data-cmd="justifyCenter" title="Centrar">≡</button>'+
-            '<button type="button" data-cmd="justifyRight" title="Derecha">⯈</button>'+
-            '<button type="button" data-cmd="justifyFull" title="Justificar">☰</button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="justifyLeft" title="Izquierda"><img class="tb-icon" src="./icons/tools/align-left.png" alt=""></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="justifyCenter" title="Centrar"><img class="tb-icon" src="./icons/tools/align-center.png" alt=""></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="justifyRight" title="Derecha"><img class="tb-icon" src="./icons/tools/align-right.png" alt=""></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="justifyFull" title="Justificar"><img class="tb-icon" src="./icons/tools/align-justify.png" alt=""></button>'+
           '</div>'+
           '<div class="tb-group">'+
-            '<button type="button" id="tb-bullet" title="Viñetas">•</button>'+
-            '<button type="button" data-cmd="insertOrderedList" title="Numeración">1.</button>'+
-            '<button type="button" data-cmd="indent" title="Sangría +">→</button>'+
-            '<button type="button" data-cmd="outdent" title="Sangría −">←</button>'+
-            '<button type="button" id="tb-clear" title="Limpiar formato">Tx</button>'+
+            '<button type="button" class="tb-icon-btn" id="tb-bullet" title="Viñetas"><img class="tb-icon" src="./icons/tools/bullet.png" alt=""></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="insertOrderedList" title="Numeración"><img class="tb-icon" src="./icons/tools/enumerate.png" alt=""></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="indent" title="Aumentar sangría"><img class="tb-icon" src="./icons/tools/increase-indent.png" alt=""></button>'+
+            '<button type="button" class="tb-icon-btn" data-cmd="outdent" title="Reducir sangría"><img class="tb-icon" src="./icons/tools/decrease-indent.png" alt=""></button>'+
+          '</div>'+
+          '<div class="tb-group">'+
+            '<button type="button" class="tb-icon-btn" id="tb-lineheight-btn" title="Interlineado"><img class="tb-icon" src="./icons/tools/line-spacing.png" alt=""></button>'+
+            '<select id="tb-lineheight" title="Interlineado" style="display:none"><option value="">-</option><option value="1">1.0</option><option value="1.15">1.15</option><option value="1.5" selected>1.5</option><option value="2">2.0</option><option value="2.5">2.5</option><option value="3">3.0</option></select>'+
+          '</div>'+
+          '<div class="tb-group">'+
+            '<button type="button" class="tb-icon-btn" id="tb-clear" title="Limpiar formato">Tx</button>'+
           '</div>'+
         '</div>'+
         '<div id="editor" class="editor" contenteditable="true" spellcheck="false"><p>Escribe aquí tu texto…</p></div>'+
@@ -654,7 +737,6 @@ export async function showFiles(fs){
 
 /* ---------- Punto de entrada ---------- */
 async function boot(){
-  Engines.updateNetworkRef && Engines.updateNetworkRef(updateNetwork);
   window.addEventListener('online', updateNetwork);
   window.addEventListener('offline', updateNetwork);
   updateNetwork();

@@ -27,7 +27,6 @@ export function renderAction(label, fn){
 
 /* ---------- Lista de archivos ---------- */
 export function renderFileList(fs){
-  // revoca thumbs
   state.thumbUrls.forEach(u=>{try{URL.revokeObjectURL(u)}catch(_){}});
   state.thumbUrls = [];
   const reorder = (state.current==='merge'||state.current==='mixpdf');
@@ -90,52 +89,265 @@ export async function refreshPageCounts(){
   if((state.current==='merge'||state.current==='mixpdf') && !dom.tool.classList.contains('hidden') && state.loadedFiles.length) renderFileList(state.loadedFiles);
 }
 
-/* ---------- Visor PDF ---------- */
+/* ==========================================================================
+   Visor PDF v2
+   ========================================================================== */
 export async function loadViewerPdf(f){
   if(!window.pdfjsLib) throw new Error('pdf.js no disponible');
-  dom.preview.innerHTML = '<div class="status">Cargando PDF…</div>';
-  try{
-    state.pdfDoc = await window.pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
-    state._viewerPage = 1; state._viewerScale = 1.0;
-    renderViewer();
-  }catch(e){ msg('No se pudo abrir el PDF: '+e.message); }
+  if(f) state.pdfDoc = await window.pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+  if(!state.pdfDoc) throw new Error('Selecciona un PDF.');
+  state._viewerScale = 1;
+  state._viewerPage = 1;
+  state._viewerPanMode = false;
+  state._viewerSearchQuery = '';
+  mountViewerV2();
 }
-function renderViewer(){
-  dom.preview.innerHTML =
-    '<div class="viewer">'+
-      '<div class="viewer-toolbar">'+
-        '<button type="button" id="v-prev" title="Anterior">◀</button>'+
-        '<button type="button" id="v-next" title="Siguiente">▶</button>'+
-        '<span id="v-page">'+state._viewerPage+' / '+state.pdfDoc.numPages+'</span>'+
-        '<button type="button" id="v-zin" title="Acercar">＋</button>'+
-        '<button type="button" id="v-zout" title="Alejar">−</button>'+
-        '<button type="button" id="v-z1" title="100%">1:1</button>'+
-        '<span id="v-scale">'+Math.round(state._viewerScale*100)+'%</span>'+
+
+function mountViewerV2(){
+  document.querySelector('#viewerV2')?.remove();
+  const container = document.createElement('div');
+  container.id = 'viewerV2';
+  container.className = 'viewer-v2';
+  container.innerHTML =
+    '<div class="viewer-topbar">'+
+      '<div class="viewer-title">Visor PDF</div>'+
+      '<div class="viewer-actions">'+
+        '<button type="button" id="vv-open" title="Abrir otro PDF">📂</button>'+
+        '<button type="button" id="vv-save" title="Guardar copia">💾</button>'+
+        '<button type="button" id="vv-zin" title="Zoom +">＋</button>'+
+        '<button type="button" id="vv-zout" title="Zoom −">−</button>'+
+        '<button type="button" id="vv-fit" title="Ajustar a la pantalla">⤢</button>'+
+        '<button type="button" id="vv-pan" title="Modo paneo">✋</button>'+
+        '<button type="button" id="vv-search" title="Buscar">🔍</button>'+
+        '<button type="button" id="vv-close" title="Cerrar visor">✕</button>'+
       '</div>'+
-      '<div class="viewer-canvas-wrap" id="v-wrap"><canvas id="v-canvas"></canvas></div>'+
+    '</div>'+
+    '<div class="search-bar" id="vv-searchbar">'+
+      '<input type="text" id="vv-searchinput" placeholder="Buscar texto…">'+
+      '<button type="button" id="vv-searchprev">◀ Ant</button>'+
+      '<button type="button" id="vv-searchnext">Sig ▶</button>'+
+      '<span class="count" id="vv-searchcount">0/0</span>'+
+      '<button type="button" id="vv-searchclose">Cerrar</button>'+
+    '</div>'+
+    '<div class="viewer-page" id="vv-pagewrap">'+
+      '<div class="viewer-empty" id="vv-empty">'+
+        '<div class="drop-area" id="vv-drop">'+
+          '<div style="font-size:36px">📄</div>'+
+          '<div style="margin-top:10px"><b>Arrastra un PDF aquí</b><br>o pulsa para abrirlo</div>'+
+        '</div>'+
+      '</div>'+
     '</div>';
-  dom.preview.querySelector('#v-prev').onclick = () => { if(state._viewerPage>1){ state._viewerPage--; renderViewerCanvas(); } };
-  dom.preview.querySelector('#v-next').onclick = () => { if(state._viewerPage<state.pdfDoc.numPages){ state._viewerPage++; renderViewerCanvas(); } };
-  dom.preview.querySelector('#v-zin').onclick = () => { state._viewerScale = Math.min(4, state._viewerScale*1.2); renderViewerCanvas(); };
-  dom.preview.querySelector('#v-zout').onclick = () => { state._viewerScale = Math.max(.2, state._viewerScale/1.2); renderViewerCanvas(); };
-  dom.preview.querySelector('#v-z1').onclick = () => { state._viewerScale = 1; renderViewerCanvas(); };
-  renderViewerCanvas();
+  document.body.appendChild(container);
+
+  document.querySelector('.app').style.display = 'none';
+
+  const pageWrap = container.querySelector('#vv-pagewrap');
+  const empty = container.querySelector('#vv-empty');
+  const drop = container.querySelector('#vv-drop');
+
+  const openBtn = container.querySelector('#vv-open');
+  const saveBtn = container.querySelector('#vv-save');
+  const zinBtn = container.querySelector('#vv-zin');
+  const zoutBtn = container.querySelector('#vv-zout');
+  const fitBtn = container.querySelector('#vv-fit');
+  const panBtn = container.querySelector('#vv-pan');
+  const searchBtn = container.querySelector('#vv-search');
+  const closeBtn = container.querySelector('#vv-close');
+
+  const searchBar = container.querySelector('#vv-searchbar');
+  const searchInput = container.querySelector('#vv-searchinput');
+  const searchPrev = container.querySelector('#vv-searchprev');
+  const searchNext = container.querySelector('#vv-searchnext');
+  const searchCount = container.querySelector('#vv-searchcount');
+  const searchClose = container.querySelector('#vv-searchclose');
+
+  function closeViewer(){
+    document.querySelector('.app').style.display = '';
+    container.remove();
+    document.querySelector('#tool').classList.add('hidden');
+    document.querySelector('#home').classList.remove('hidden');
+    state.pdfDoc = null;
+  }
+
+  closeBtn.onclick = closeViewer;
+  openBtn.onclick = () => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'application/pdf';
+    inp.onchange = async () => {
+      const f = inp.files[0]; if(!f)return;
+      state.pdfDoc = await window.pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+      state._viewerScale = 1; state._viewerPage = 1;
+      renderAllPages();
+    };
+    inp.click();
+  };
+  saveBtn.onclick = async () => {
+    if(!state.pdfDoc)return;
+    const bytes = await state.pdfDoc.getData();
+    await dl(bytes, 'documento_copia.pdf');
+  };
+  zinBtn.onclick = () => { state._viewerScale = Math.min(4, state._viewerScale*1.2); applyZoom(); };
+  zoutBtn.onclick = () => { state._viewerScale = Math.max(.3, state._viewerScale/1.2); applyZoom(); };
+  fitBtn.onclick = () => { state._viewerScale = 1; applyZoom(); };
+  panBtn.onclick = () => {
+    state._viewerPanMode = !state._viewerPanMode;
+    panBtn.classList.toggle('active', state._viewerPanMode);
+    pageWrap.classList.toggle('pan-mode', state._viewerPanMode);
+  };
+  searchBtn.onclick = () => {
+    searchBar.classList.toggle('on');
+    if(searchBar.classList.contains('on')) searchInput.focus();
+  };
+  searchClose.onclick = () => { searchBar.classList.remove('on'); };
+  searchInput.oninput = debounce(() => doSearch(), 300);
+  searchPrev.onclick = () => jumpSearch(-1);
+  searchNext.onclick = () => jumpSearch(1);
+
+  // Pan
+  let panState = null;
+  pageWrap.addEventListener('pointerdown', (e) => {
+    if(!state._viewerPanMode) return;
+    if(e.target.closest('button, input')) return;
+    panState = {x: e.clientX, y: e.clientY, sl: pageWrap.scrollLeft, st: pageWrap.scrollTop};
+    pageWrap.classList.add('grabbing');
+    try{ pageWrap.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  pageWrap.addEventListener('pointermove', (e) => {
+    if(!panState) return;
+    pageWrap.scrollLeft = panState.sl - (e.clientX - panState.x);
+    pageWrap.scrollTop  = panState.st - (e.clientY - panState.y);
+  });
+  const stopPan = () => { panState = null; pageWrap.classList.remove('grabbing'); };
+  pageWrap.addEventListener('pointerup', stopPan);
+  pageWrap.addEventListener('pointercancel', stopPan);
+  pageWrap.addEventListener('pointerleave', stopPan);
+
+  // Ctrl + rueda = zoom
+  pageWrap.addEventListener('wheel', (e) => {
+    if(!e.ctrlKey) return;
+    e.preventDefault();
+    if(e.deltaY < 0) state._viewerScale = Math.min(4, state._viewerScale*1.1);
+    else state._viewerScale = Math.max(.3, state._viewerScale/1.1);
+    applyZoom();
+  }, {passive:false});
+
+  // Pinch-to-zoom
+  let pinchStart = null;
+  pageWrap.addEventListener('touchstart', (e) => {
+    if(e.touches.length === 2){
+      pinchStart = { dist: touchDist(e.touches), scale: state._viewerScale };
+    }
+  }, {passive:true});
+  pageWrap.addEventListener('touchmove', (e) => {
+    if(pinchStart && e.touches.length === 2){
+      e.preventDefault();
+      const d = touchDist(e.touches);
+      const newScale = Math.max(.3, Math.min(4, pinchStart.scale * (d / pinchStart.dist)));
+      state._viewerScale = newScale;
+      applyZoom();
+    }
+  }, {passive:false});
+  pageWrap.addEventListener('touchend', () => { pinchStart = null; });
+
+  function touchDist(touches){
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  }
+
+  // Drag & drop
+  drop.onclick = () => openBtn.click();
+  ['dragenter','dragover'].forEach(ev => {
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(ev => {
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('drag'); });
+  });
+  drop.addEventListener('drop', async (e) => {
+    const f = e.dataTransfer.files[0];
+    if(!f)return;
+    state.pdfDoc = await window.pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+    state._viewerScale = 1; state._viewerPage = 1;
+    renderAllPages();
+  });
+
+  // Zoom: redimensiona todos los canvas
+  function applyZoom(){
+    if(!state._viewerPageWrappers || !state._viewerPageWrappers.length) return;
+    const containerW = pageWrap.clientWidth - 28;
+    state._viewerPageWrappers.forEach(({canvas, page}) => {
+      renderCanvasAtZoom(canvas, page, containerW);
+    });
+  }
+
+  async function renderCanvasAtZoom(canvas, page, containerW){
+    const baseVp = page.getViewport({scale: 1});
+    const fitScale = containerW / baseVp.width;
+    const scale = fitScale * state._viewerScale;
+    const vp = page.getViewport({scale});
+    canvas.width = Math.round(vp.width);
+    canvas.height = Math.round(vp.height);
+    canvas.style.width = vp.width+'px';
+    canvas.style.height = vp.height+'px';
+    await page.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
+  }
+
+  async function renderAllPages(){
+    if(!state.pdfDoc)return;
+    empty.style.display = 'none';
+    pageWrap.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'viewer-page-wrap';
+    pageWrap.appendChild(wrap);
+    state._viewerPageWrappers = [];
+
+    const containerW = pageWrap.clientWidth - 28;
+    for(let n = 1; n <= state.pdfDoc.numPages; n++){
+      const page = await state.pdfDoc.getPage(n);
+      const canvas = document.createElement('canvas');
+      canvas.className = 'page-canvas';
+      wrap.appendChild(canvas);
+      state._viewerPageWrappers.push({canvas, page});
+      await renderCanvasAtZoom(canvas, page, containerW);
+    }
+  }
+
+  // Búsqueda
+  let searchResults = [];
+  let searchIndex = -1;
+  async function doSearch(){
+    const q = searchInput.value.trim();
+    searchResults = []; searchIndex = -1;
+    if(!q || !state.pdfDoc){ searchCount.textContent = '0/0'; return; }
+    for(let n = 1; n <= state.pdfDoc.numPages; n++){
+      const page = await state.pdfDoc.getPage(n);
+      const text = await page.getTextContent();
+      const str = text.items.map(it => it.str).join(' ');
+      if(str.toLowerCase().includes(q.toLowerCase())) searchResults.push(n);
+    }
+    searchCount.textContent = (searchResults.length? '1' : '0') + '/' + searchResults.length;
+    if(searchResults.length){ searchIndex = 0; jumpToPage(searchResults[0]); }
+  }
+  function jumpSearch(dir){
+    if(!searchResults.length) return;
+    searchIndex = (searchIndex + dir + searchResults.length) % searchResults.length;
+    searchCount.textContent = (searchIndex+1)+'/'+searchResults.length;
+    jumpToPage(searchResults[searchIndex]);
+  }
+  function jumpToPage(n){
+    const el = state._viewerPageWrappers[n-1]?.canvas;
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  if(state.pdfDoc){
+    renderAllPages();
+  }else{
+    empty.style.display = '';
+  }
+
+  window.addEventListener('resize', debounce(applyZoom, 250));
 }
-async function renderViewerCanvas(){
-  const canvas = dom.preview.querySelector('#v-canvas');
-  if(!canvas)return;
-  const page = await state.pdfDoc.getPage(state._viewerPage);
-  const wrap = dom.preview.querySelector('#v-wrap');
-  const baseW = Math.min(wrap.clientWidth-20, 1200);
-  const vp1 = page.getViewport({scale:1});
-  const fitScale = baseW/vp1.width;
-  const scale = fitScale*state._viewerScale;
-  const vp = page.getViewport({scale});
-  canvas.width = Math.round(vp.width); canvas.height = Math.round(vp.height);
-  await page.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
-  dom.preview.querySelector('#v-page').textContent = state._viewerPage+' / '+state.pdfDoc.numPages;
-  dom.preview.querySelector('#v-scale').textContent = Math.round(state._viewerScale*100)+'%';
-}
+function debounce(fn, ms){ let t; return (...args) => { clearTimeout(t); t = setTimeout(()=>fn(...args), ms); }; }
 
 /* ---------- Rotar páginas ---------- */
 export async function loadRotatePdf(f){
@@ -190,6 +402,7 @@ export async function loadDividePdf(f){
     const meta = await state.pdfDoc.getMetadata().catch(()=>({info:{}}));
     const info = meta.info||{};
     const mod = info.ModDate ? formatPdfDate(info.ModDate) : '—';
+    // Info del documento + vista previa
     dom.preview.innerHTML =
       '<div class="section">Información del documento</div>'+
       '<div class="panel">'+
@@ -197,7 +410,17 @@ export async function loadDividePdf(f){
         '<div><b>Páginas:</b> '+state.pdfDoc.numPages+'</div>'+
         '<div><b>Tamaño:</b> '+fileSize(state.loadedFiles[0].size)+'</div>'+
         '<div><b>Modificado:</b> '+mod+'</div>'+
-      '</div>';
+      '</div>'+
+      '<div class="section">Vista previa</div>'+
+      '<div class="thumbs" id="divPreview"></div>';
+    const grid = dom.preview.querySelector('#divPreview');
+    for(let n=1;n<=state.pdfDoc.numPages;n++){
+      const d = document.createElement('div');
+      d.className = 'thumb';
+      d.innerHTML = '<canvas></canvas><small>Página '+n+'</small>';
+      grid.appendChild(d);
+      renderThumbOnPage(state.pdfDoc, n, d.querySelector('canvas'));
+    }
   }catch(e){ msg('No se pudo abrir el PDF: '+e.message); }
 }
 function formatPdfDate(s){
@@ -214,49 +437,58 @@ export async function applyDivide(){
     const total = src.getPageCount();
     const zip = new window.JSZip();
     let tasks = [];
+
     if(mode==='ranges'){
-      const raw = (dom.options.querySelector('#div-ranges').value||'').trim();
-      if(!raw)throw new Error('Introduce al menos un rango.');
-      const lines = raw.split('\n').map(x=>x.trim()).filter(Boolean);
+      const rows = [...dom.options.querySelectorAll('#div-ranges-table tbody tr')];
+      if(!rows.length) throw new Error('Añade al menos un rango.');
       let counter = 1;
-      for(const line of lines){
-        let name = null, range = line;
-        const idx = line.indexOf(':');
-        if(idx>=0){ name = line.slice(0,idx).trim(); range = line.slice(idx+1).trim(); }
-        const pages = parseRange(range, total);
-        if(!pages.length)continue;
-        tasks.push({name:(name||('parte'+(counter++))), pages});
+      for(const tr of rows){
+        const nameInp = tr.querySelector('.rng-name');
+        const fromInp = tr.querySelector('.rng-from');
+        const toInp   = tr.querySelector('.rng-to');
+        const name = (nameInp.value || '').trim() || ('parte'+(counter++));
+        let from = parseInt(fromInp.value, 10);
+        let to   = parseInt(toInp.value, 10);
+        if(isNaN(from) || from < 1) from = 1;
+        if(isNaN(to) || to < from) to = total;
+        from = Math.min(from, total);
+        to = Math.min(to, total);
+        const pages = [];
+        for(let n = from; n <= to; n++) pages.push(n);
+        if(pages.length) tasks.push({name, pages});
       }
-      if(!tasks.length)throw new Error('Ningún rango válido.');
+      if(!tasks.length) throw new Error('Ningún rango válido.');
     }else{
       const npp = Math.max(1, parseInt(dom.options.querySelector('#div-npp').value,10)||1);
       let idx = 1;
-      for(let start=1; start<=total; start+=npp){
-        const end = Math.min(total, start+npp-1);
+      for(let start = 1; start <= total; start += npp){
+        const end = Math.min(total, start + npp - 1);
         const pages = [];
-        for(let n=start; n<=end; n++) pages.push(n);
+        for(let n = start; n <= end; n++) pages.push(n);
         tasks.push({name:'parte'+idx, pages});
         idx++;
       }
     }
-    for(let t=0;t<tasks.length;t++){
+
+    for(let t = 0; t < tasks.length; t++){
       p.check();
       const task = tasks[t];
-      p.set(20+t/tasks.length*70, 'Generando '+task.name+' ('+task.pages.length+' pág)…');
+      p.set(20 + t/tasks.length*70, 'Generando '+task.name+' ('+task.pages.length+' pág)…');
       const out = await window.PDFLib.PDFDocument.create();
-      const copied = await out.copyPages(src, task.pages.map(n=>n-1));
-      copied.forEach(pg=>out.addPage(pg));
+      const copied = await out.copyPages(src, task.pages.map(n => n-1));
+      copied.forEach(pg => out.addPage(pg));
       const bytes = await out.save();
-      zip.file(task.name+'.pdf', bytes);
+      zip.file(task.name + '.pdf', bytes);
     }
-    p.set(95,'Comprimiendo ZIP…');
+
+    p.set(95, 'Comprimiendo ZIP…');
     const blob = await zip.generateAsync({type:'blob'});
-    await dl(await blob.arrayBuffer(), base(state.loadedFiles[0].name)+'_dividido.zip','application/zip');
+    await dl(await blob.arrayBuffer(), base(state.loadedFiles[0].name)+'_dividido.zip', 'application/zip');
     p.done('PDF dividido en '+tasks.length+' archivo(s).');
   }catch(e){ if(e.message==='__CANCEL__')p.done('Operación cancelada.'); else{ p.done('Error'); throw e; } }
 }
 
-/* ---------- Cargar PDF genérico (extract / image / extractimg) ---------- */
+/* ---------- Cargar PDF genérico ---------- */
 export async function loadPdf(f){
   if(!window.PDFLib||!window.pdfjsLib) throw new Error('Motores no disponibles');
   dom.preview.innerHTML = '<div class="status">Cargando PDF…</div>';
@@ -364,7 +596,7 @@ export async function makeImages(){
   }catch(e){ if(e.message==='__CANCEL__')p.done('Operación cancelada.'); else{ p.done('Error'); throw e; } }
 }
 
-/* ---------- Imagen → PDF (con conservar relación de aspecto) ---------- */
+/* ---------- Imagen → PDF ---------- */
 export async function makeImagePdf(){
   const sheetSel = dom.options.querySelector('#size').value;
   const orient = dom.options.querySelector('#orient').value;
@@ -401,26 +633,18 @@ export async function makeImagePdf(){
       p.check();
       const {canvas,width:iw,height:ih} = await imageToCanvas(state.loadedFiles[i]);
 
-      // Calcular tamaño final (dw,dh) respetando "keepAspect"
       let dw,dh;
       if(imgWcm&&imgHcm){
         const boxW = imgWcm*CM, boxH = imgHcm*CM;
         if(keepAspect){
           const srcRatio = iw / ih;
           const boxRatio = boxW / boxH;
-          if(srcRatio > boxRatio){
-            // La imagen es más ancha: ajusta al ancho, alto proporcional
-            dw = boxW;
-            dh = boxW / srcRatio;
-          }else{
-            dh = boxH;
-            dw = boxH * srcRatio;
-          }
+          if(srcRatio > boxRatio){ dw = boxW; dh = boxW / srcRatio; }
+          else{ dh = boxH; dw = boxH * srcRatio; }
         }else{
           dw = boxW; dh = boxH;
         }
       }else{
-        // auto: ajustar a la hoja completa descontando márgenes
         const availW = Math.max(1,pgW-marginPt*2);
         const availH = Math.max(1,pgH-marginPt*2);
         const k = Math.min(availW/canvas.width, availH/canvas.height);
@@ -428,14 +652,12 @@ export async function makeImagePdf(){
         dh = canvas.height*k;
       }
 
-      // Calcular posición X
       let x;
       if(posH==='custom') x = posXcm*CM;
       else if(posH==='center') x = (pgW-dw)/2;
       else if(posH==='right') x = pgW-marginPt-dw;
       else x = marginPt;
 
-      // Calcular posición Y (desde arriba; pdf-lib usa origen abajo-izquierda)
       let yTop;
       if(posV==='custom') yTop = posYcm*CM;
       else if(posV==='center') yTop = (pgH-dh)/2;
@@ -884,7 +1106,7 @@ export async function loadFillPdf(f){
   }catch(e){ msg('No se pudo abrir: '+e.message); }
 }
 async function renderFillPreview(force){
-  if(!state._fillPageCanvas || state._fillPageNum!==state._fillPageNum || force || !state._fillPageCanvas){
+  if(!state._fillPageCanvas || force){
     if(!dom.preview.querySelector('#fillPreviewHost')){
       dom.preview.innerHTML =
         '<div class="section">Vista previa ('+state.pdfDoc.numPages+' páginas)</div>'+
@@ -927,51 +1149,100 @@ async function renderFillPreview(force){
     el.className = 'fill-item'+(idx===state._fillSelectedIdx?' selected':'');
     el.style.left = (item.x_cm*state._fillScale*CM)+'px';
     el.style.top = (item.y_cm*state._fillScale*CM)+'px';
-    el.innerHTML = '<span class="fill-text" style="font-size:'+(item.size*state._fillScale)+'px;font-weight:'+(item.bold?'700':'400')+';font-style:'+(item.italic?'italic':'normal')+';text-decoration:'+(item.underline?'underline':'none')+';color:'+item.color+';font-family:'+fontFamilyCSS(item.font)+'">'+esc(item.text||'(texto)')+'</span>'+
+    if(item.bg && item.bg !== 'transparent') el.style.background = item.bg;
+    else el.style.background = 'rgba(37,99,235,.08)';
+    el.innerHTML =
+      '<span class="fill-text" style="font-size:'+(item.size*state._fillScale)+'px;font-weight:'+(item.bold?'700':'400')+';font-style:'+(item.italic?'italic':'normal')+';text-decoration:'+(item.underline?'underline':'none')+';color:'+item.color+';font-family:'+fontFamilyCSS(item.font)+'">'+esc(item.text||'(texto)')+'</span>'+
       '<span class="fill-handle"></span>';
     wrap.appendChild(el);
     el.addEventListener('pointerdown',(e)=>{
       state._fillSelectedIdx = idx;
+      const setVal = (id, v) => { const el2 = dom.options.querySelector(id); if(el2) el2.value = v; };
+      setVal('#fl-text', item.text);
+      setVal('#fl-size', item.size);
+      setVal('#fl-font', item.font);
+      setVal('#fl-color', item.color);
+      setVal('#fl-underline', item.underline ? '1' : '0');
+      setVal('#fl-style', item.style || '');
+      const bgOn = dom.options.querySelector('#fl-bg-on');
+      const bgCol = dom.options.querySelector('#fl-bg');
+      if(bgOn) bgOn.checked = item.bg && item.bg !== 'transparent';
+      if(bgCol && item.bg && item.bg !== 'transparent') bgCol.value = item.bg;
+      const upd = dom.options.querySelector('#fl-update');
+      if(upd) upd.style.display = '';
+
       const kind = e.target.classList.contains('fill-handle') ? 'resize' : 'move';
       const startX = e.clientX, startY = e.clientY;
       const startXCm = item.x_cm, startYCm = item.y_cm, startSize = item.size;
-      try{ el.setPointerCapture(e.pointerId); }catch(_){}
-      const onMove = (ev)=>{
-        const dx = (ev.clientX-startX)/(state._fillScale*CM);
-        const dy = (ev.clientY-startY)/(state._fillScale*CM);
-        if(kind==='move'){ item.x_cm = Math.max(0,startXCm+dx); item.y_cm = Math.max(0,startYCm+dy); }
-        else{ item.size = Math.max(6, startSize+(dx)*4); }
-        el.style.left = (item.x_cm*state._fillScale*CM)+'px';
-        el.style.top = (item.y_cm*state._fillScale*CM)+'px';
-        el.querySelector('.fill-text').style.fontSize = (item.size*state._fillScale)+'px';
+      try { el.setPointerCapture(e.pointerId); } catch(_) {}
+      const onMove = (ev) => {
+        const dx = (ev.clientX - startX) / (state._fillScale * CM);
+        const dy = (ev.clientY - startY) / (state._fillScale * CM);
+        if(kind === 'move'){
+          item.x_cm = Math.max(0, startXCm + dx);
+          item.y_cm = Math.max(0, startYCm + dy);
+        } else {
+          item.size = Math.max(6, startSize + dx * 4);
+        }
+        el.style.left = (item.x_cm * state._fillScale * CM) + 'px';
+        el.style.top = (item.y_cm * state._fillScale * CM) + 'px';
+        el.querySelector('.fill-text').style.fontSize = (item.size * state._fillScale) + 'px';
       };
-      const onUp = () => { el.removeEventListener('pointermove',onMove); el.removeEventListener('pointerup',onUp); el.removeEventListener('pointercancel',onUp); };
-      el.addEventListener('pointermove',onMove);
-      el.addEventListener('pointerup',onUp);
-      el.addEventListener('pointercancel',onUp);
+      const onUp = () => {
+        el.removeEventListener('pointermove', onMove);
+        el.removeEventListener('pointerup', onUp);
+        el.removeEventListener('pointercancel', onUp);
+      };
+      el.addEventListener('pointermove', onMove);
+      el.addEventListener('pointerup', onUp);
+      el.addEventListener('pointercancel', onUp);
       e.preventDefault();
     });
   });
 }
 function fontFamilyCSS(f){
-  if(f==='TimesRoman')return 'Times, serif';
-  if(f==='Courier')return 'Courier New, monospace';
+  if(f && f.startsWith('Times')) return 'Times, serif';
+  if(f && f.startsWith('Courier')) return 'Courier New, monospace';
+  if(f === 'Symbol') return 'serif';
+  if(f === 'ZapfDingbats') return 'serif';
   return 'Helvetica, Arial, sans-serif';
 }
 export function addFillItem(page){
+  const text = (dom.options.querySelector('#fl-text')||{}).value || 'Texto nuevo';
+  const bgOn = (dom.options.querySelector('#fl-bg-on')||{}).checked;
+  const bgColor = (dom.options.querySelector('#fl-bg')||{}).value || '#ffff00';
   state._fillItems.push({
-    x_cm:2, y_cm:2,
-    text:'Texto nuevo',
-    size:parseFloat((dom.options.querySelector('#fl-size')||{}).value)||14,
-    font:(dom.options.querySelector('#fl-font')||{}).value||'Helvetica',
-    color:(dom.options.querySelector('#fl-color')||{}).value||'#000000',
-    style:(dom.options.querySelector('#fl-style')||{}).value||'',
-    bold:((dom.options.querySelector('#fl-style')||{}).value||'').includes('bold'),
-    italic:((dom.options.querySelector('#fl-style')||{}).value||'').includes('italic'),
-    underline:(dom.options.querySelector('#fl-underline')||{}).value==='1',
-    page:state._fillPageNum
+    x_cm: 2, y_cm: 2,
+    text,
+    size: parseFloat((dom.options.querySelector('#fl-size')||{}).value) || 14,
+    font: (dom.options.querySelector('#fl-font')||{}).value || 'Helvetica',
+    color: (dom.options.querySelector('#fl-color')||{}).value || '#000000',
+    bg: bgOn ? bgColor : 'transparent',
+    style: (dom.options.querySelector('#fl-style')||{}).value || '',
+    bold: ((dom.options.querySelector('#fl-style')||{}).value || '').includes('bold'),
+    italic: ((dom.options.querySelector('#fl-style')||{}).value || '').includes('italic'),
+    underline: (dom.options.querySelector('#fl-underline')||{}).value === '1',
+    page: state._fillPageNum
   });
-  state._fillSelectedIdx = state._fillItems.length-1;
+  state._fillSelectedIdx = state._fillItems.length - 1;
+  renderFillPreview();
+}
+export function updateSelectedFillItem(){
+  if(state._fillSelectedIdx < 0 || !state._fillItems[state._fillSelectedIdx]) {
+    msg('Selecciona primero un texto.');
+    return;
+  }
+  const item = state._fillItems[state._fillSelectedIdx];
+  item.text = (dom.options.querySelector('#fl-text')||{}).value || item.text;
+  item.size = parseFloat((dom.options.querySelector('#fl-size')||{}).value) || item.size;
+  item.font = (dom.options.querySelector('#fl-font')||{}).value || item.font;
+  item.color = (dom.options.querySelector('#fl-color')||{}).value || item.color;
+  const bgOn = (dom.options.querySelector('#fl-bg-on')||{}).checked;
+  const bgColor = (dom.options.querySelector('#fl-bg')||{}).value || '#ffff00';
+  item.bg = bgOn ? bgColor : 'transparent';
+  const st = (dom.options.querySelector('#fl-style')||{}).value || '';
+  item.style = st; item.bold = st.includes('bold'); item.italic = st.includes('italic');
+  item.underline = (dom.options.querySelector('#fl-underline')||{}).value === '1';
   renderFillPreview();
 }
 export async function applyFill(){
@@ -980,14 +1251,22 @@ export async function applyFill(){
   try{
     const pdf = await window.PDFLib.PDFDocument.load(await state.loadedFiles[0].arrayBuffer(),{ignoreEncryption:true});
     const fontsCache = {};
-    async function getFont(name,bold,italic){
-      const key = name+(bold?'B':'')+(italic?'I':'');
-      if(fontsCache[key])return fontsCache[key];
-      let std;
+    async function getFont(name, bold, italic){
+      const key = name + (bold ? 'B' : '') + (italic ? 'I' : '');
+      if(fontsCache[key]) return fontsCache[key];
       const SF = window.PDFLib.StandardFonts;
-      if(name==='TimesRoman')std = bold ? (italic?SF.TimesRomanBoldItalic:SF.TimesRomanBold) : (italic?SF.TimesRomanItalic:SF.TimesRoman);
-      else if(name==='Courier')std = bold ? (italic?SF.CourierBoldOblique:SF.CourierBold) : (italic?SF.CourierOblique:SF.Courier);
-      else std = bold ? (italic?SF.HelveticaBoldOblique:SF.HelveticaBold) : (italic?SF.HelveticaOblique:SF.Helvetica);
+      let std;
+      if(name === 'Symbol') std = SF.Symbol;
+      else if(name === 'ZapfDingbats') std = SF.ZapfDingbats;
+      else if(name === 'TimesRomanBold') std = SF.TimesRomanBold;
+      else if(name === 'TimesRomanItalic') std = SF.TimesRomanItalic;
+      else if(name === 'CourierBold') std = SF.CourierBold;
+      else if(name === 'CourierOblique') std = SF.CourierOblique;
+      else if(name === 'HelveticaBold') std = SF.HelveticaBold;
+      else if(name === 'HelveticaOblique') std = SF.HelveticaOblique;
+      else if(name === 'TimesRoman') std = italic ? SF.TimesRomanItalic : (bold ? SF.TimesRomanBold : SF.TimesRoman);
+      else if(name === 'Courier') std = italic ? SF.CourierOblique : (bold ? SF.CourierBold : SF.Courier);
+      else std = italic ? SF.HelveticaOblique : (bold ? SF.HelveticaBold : SF.Helvetica);
       const f = await pdf.embedFont(std);
       fontsCache[key] = f;
       return f;
@@ -997,9 +1276,23 @@ export async function applyFill(){
       const page = pdf.getPage(item.page-1);
       const {height:pgH} = page.getSize();
       const font = await getFont(item.font, item.bold, item.italic);
-      const x = item.x_cm*CM;
-      const y = pgH - (item.y_cm*CM) - item.size*0.9;
+      const x = item.x_cm * CM;
+      const y = pgH - (item.y_cm * CM) - item.size * 0.9;
       const rgb = hexToRgb(item.color);
+
+      // Fondo (si aplica)
+      if(item.bg && item.bg !== 'transparent'){
+        const textW = font.widthOfTextAtSize(safeText(item.text), item.size);
+        const padX = 2, padY = item.size * 0.15;
+        page.drawRectangle({
+          x: x - padX,
+          y: y - padY,
+          width: textW + padX*2,
+          height: item.size + padY*2,
+          color: hexToRgb(item.bg)
+        });
+      }
+
       page.drawText(safeText(item.text),{x,y,size:item.size,font,color:rgb});
       if(item.underline){
         const w = font.widthOfTextAtSize(safeText(item.text), item.size);
@@ -1013,7 +1306,7 @@ export async function applyFill(){
   }catch(e){ if(e.message==='__CANCEL__')p.done('Operación cancelada.'); else{ p.done('Error'); throw e; } }
 }
 
-/* ---------- Firmar PDF con firmas guardadas ---------- */
+/* ---------- Firmar PDF ---------- */
 const SIG_STORE_KEY = 'pdf-tools-pepe-signatures';
 export function getSavedSignatures(){
   try{ return JSON.parse(localStorage.getItem(SIG_STORE_KEY)||'[]'); }catch(e){ return[]; }
@@ -1117,52 +1410,142 @@ function setupSignaturePad(){
   if(!canvas)return;
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio||1;
-  canvas.width = Math.max(1,Math.round(rect.width*dpr));
-  canvas.height = Math.max(1,Math.round(rect.height*dpr));
+  canvas.width = Math.max(1, Math.round(rect.width*dpr));
+  canvas.height = Math.max(1, Math.round(rect.height*dpr));
   state.sigCtx = canvas.getContext('2d');
   state.sigCtx.setTransform(dpr,0,0,dpr,0,0);
-  state.sigCtx.lineCap = 'round'; state.sigCtx.lineJoin = 'round';
-  state.sigCtx.strokeStyle = state._sigColor; state.sigCtx.lineWidth = 2.4;
+  state.sigCtx.lineCap = 'round';
+  state.sigCtx.lineJoin = 'round';
+  state.sigCtx.strokeStyle = state._sigStroke;
+  state.sigCtx.lineWidth = state._sigStrokeWidth;
   state.sigHasStrokes = false;
-  const getPos = (e) => { const r = canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; };
-  const start = (e) => { e.preventDefault(); try{canvas.setPointerCapture(e.pointerId)}catch(_){} state.sigDrawing=true; const {x,y}=getPos(e); state.sigCtx.beginPath(); state.sigCtx.moveTo(x,y); };
-  const move = (e) => { if(!state.sigDrawing)return; e.preventDefault(); const {x,y}=getPos(e); state.sigCtx.lineTo(x,y); state.sigCtx.stroke(); state.sigHasStrokes=true; };
-  const end = () => { if(state.sigDrawing){ state.sigDrawing=false; if(state.sigHasStrokes){ updateSignatureImage(); updateSignaturePosition(); } } };
+
+  const getPos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return {x: e.clientX - r.left, y: e.clientY - r.top};
+  };
+
+  let shapeStart = null, lastSnapshot = null;
+
+  const start = (e) => {
+    e.preventDefault();
+    try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+    const {x,y} = getPos(e);
+    if(state._sigTool === 'pencil'){
+      state.sigDrawing = true;
+      state.sigCtx.beginPath();
+      state.sigCtx.moveTo(x,y);
+    }else{
+      lastSnapshot = state.sigCtx.getImageData(0,0,canvas.width,canvas.height);
+      shapeStart = {x,y};
+    }
+  };
+
+  const move = (e) => {
+    if(state._sigTool === 'pencil'){
+      if(!state.sigDrawing) return;
+      e.preventDefault();
+      const {x,y} = getPos(e);
+      state.sigCtx.lineTo(x,y);
+      state.sigCtx.stroke();
+      state.sigHasStrokes = true;
+      return;
+    }
+    if(!shapeStart) return;
+    e.preventDefault();
+    const {x,y} = getPos(e);
+    state.sigCtx.putImageData(lastSnapshot,0,0);
+    drawShape(shapeStart.x, shapeStart.y, x, y);
+    state.sigHasStrokes = true;
+  };
+
+  const end = () => {
+    if(state._sigTool === 'pencil'){
+      if(state.sigDrawing){
+        state.sigDrawing = false;
+        if(state.sigHasStrokes){ updateSignatureImage(); updateSignaturePosition(); }
+      }
+      return;
+    }
+    shapeStart = null;
+    if(state.sigHasStrokes){ updateSignatureImage(); updateSignaturePosition(); }
+  };
+
+  function drawShape(x0,y0,x1,y1){
+    const ctx = state.sigCtx;
+    const stroke = state._sigStroke;
+    const fill = state._sigFill;
+    ctx.save();
+    ctx.lineWidth = state._sigStrokeWidth || 2.4;
+    ctx.strokeStyle = stroke;
+    ctx.fillStyle = fill === 'transparent' ? 'rgba(0,0,0,0)' : fill;
+    ctx.beginPath();
+    const x = Math.min(x0,x1), y = Math.min(y0,y1);
+    const w = Math.abs(x1-x0), h = Math.abs(y1-y0);
+    if(state._sigTool === 'rect'){
+      ctx.rect(x,y,w,h);
+    }else if(state._sigTool === 'circle'){
+      const rx = w/2, ry = h/2;
+      ctx.ellipse(x+rx, y+ry, rx, ry, 0, 0, Math.PI*2);
+    }
+    if(fill !== 'transparent') ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
   canvas.addEventListener('pointerdown', start);
   canvas.addEventListener('pointermove', move);
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
   canvas.addEventListener('pointerleave', end);
+
   const clearBtn = dom.options.querySelector('#sigClear');
-  if(clearBtn) clearBtn.onclick = () => { state.sigCtx.save(); state.sigCtx.setTransform(1,0,0,1,0,0); state.sigCtx.clearRect(0,0,canvas.width,canvas.height); state.sigCtx.restore(); state.sigHasStrokes=false; updateSignatureImage(); };
+  if(clearBtn) clearBtn.onclick = () => {
+    state.sigCtx.save(); state.sigCtx.setTransform(1,0,0,1,0,0);
+    state.sigCtx.clearRect(0,0,canvas.width,canvas.height);
+    state.sigCtx.restore();
+    state.sigHasStrokes = false;
+    updateSignatureImage();
+  };
   const saveBtn = dom.options.querySelector('#sigSave');
   if(saveBtn) saveBtn.onclick = () => {
     const url = getSignatureDataURL();
     if(!url){ msg('Dibuja una firma antes de guardarla.'); return; }
     const arr = getSavedSignatures();
     arr.push({dataURL:url, ts:Date.now()});
-    while(arr.length>20)arr.shift();
+    while(arr.length > 20) arr.shift();
     setSavedSignatures(arr);
     renderSavedSignatures();
   };
-  const palette = [
-    {n:'Negro',c:'#000000'},{n:'Blanco',c:'#ffffff'},{n:'Rojo',c:'#dc2626'},
-    {n:'Verde',c:'#16a34a'},{n:'Azul',c:'#2563eb'},{n:'Amarillo',c:'#eab308'}
-  ];
-  const colorWrap = document.createElement('div');
-  colorWrap.className = 'pen-colors';
-  let adv = null;
-  palette.forEach(p=>{
-    const b = document.createElement('button');
-    b.type='button'; b.className='pen-color'+(p.c.toLowerCase()===state._sigColor.toLowerCase()?' active':''); b.title=p.n; b.style.background=p.c;
-    b.onclick = () => { state._sigColor=p.c; state.sigCtx.strokeStyle=state._sigColor; [...colorWrap.querySelectorAll('.pen-color')].forEach(x=>x.classList.remove('active')); b.classList.add('active'); if(adv)adv.value=p.c; };
-    colorWrap.appendChild(b);
-  });
-  adv = document.createElement('input');
-  adv.type='color'; adv.value=state._sigColor; adv.className='pen-color adv'; adv.style.padding='0'; adv.title='Color personalizado';
-  adv.oninput = (e) => { state._sigColor=e.target.value; state.sigCtx.strokeStyle=state._sigColor; [...colorWrap.querySelectorAll('.pen-color')].forEach(x=>x.classList.remove('active')); adv.classList.add('active'); };
-  colorWrap.appendChild(adv);
-  canvas.parentNode.insertBefore(colorWrap, canvas.nextSibling);
+
+  const toolbar = dom.options.querySelector('#sigDrawTools');
+  if(toolbar){
+    const setTool = (tool) => {
+      state._sigTool = tool;
+      toolbar.querySelectorAll('button[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === tool));
+    };
+    toolbar.querySelectorAll('button[data-tool]').forEach(btn => {
+      btn.onclick = () => setTool(btn.dataset.tool);
+    });
+    setTool(state._sigTool);
+
+    const colorPencil = dom.options.querySelector('#sigStrokeColor');
+    const colorFill   = dom.options.querySelector('#sigFillColor');
+    const fillOn      = dom.options.querySelector('#sigFillOn');
+    const strokeW     = dom.options.querySelector('#sigStrokeWidth');
+    if(colorPencil){
+      colorPencil.value = state._sigStroke;
+      colorPencil.oninput = () => { state._sigStroke = colorPencil.value; state._sigColor = colorPencil.value; };
+    }
+    if(colorFill && fillOn){
+      const sync = () => { state._sigFill = fillOn.checked ? colorFill.value : 'transparent'; };
+      colorFill.oninput = sync; fillOn.onchange = sync; sync();
+    }
+    if(strokeW){
+      state._sigStrokeWidth = parseFloat(strokeW.value) || 2.4;
+      strokeW.oninput = () => { state._sigStrokeWidth = parseFloat(strokeW.value) || 2.4; };
+    }
+  }
 }
 function getSignatureDataURL(){
   const canvas = dom.options.querySelector('#sigCanvas');
@@ -1381,6 +1764,8 @@ export function wireEditor(){
   dom.options.querySelector('#tb-size').onchange = (e) => { editor.focus(); applyEditorFontSize(parseInt(e.target.value,10)||14); };
   const lh = dom.options.querySelector('#tb-lineheight');
   if(lh) lh.onchange = (e) => { const v = e.target.value; if(!v)return; editor.focus(); const val = parseFloat(v); const blocks = editor.querySelectorAll('p,div,li,h1,h2,h3,h4,h5,h6,blockquote'); blocks.forEach(el=>{ el.style.lineHeight = val; }); if(!blocks.length) editor.style.lineHeight = val; };
+  const lhBtn = dom.options.querySelector('#tb-lineheight-btn');
+  if(lhBtn) lhBtn.onclick = (e) => { e.preventDefault(); if(lh) lh.focus(); if(lh) lh.click(); };
   dom.options.querySelector('#tb-clear').onclick = (e) => { e.preventDefault(); editor.focus(); try{document.execCommand('removeFormat',false,null)}catch(_){}; try{document.execCommand('formatBlock',false,'p')}catch(_){}; };
   const bulletBtn = dom.options.querySelector('#tb-bullet');
   if(bulletBtn) bulletBtn.onclick = (e) => { e.preventDefault(); openBulletMenu(bulletBtn); };
