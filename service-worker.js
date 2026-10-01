@@ -1,9 +1,13 @@
-const CACHE = 'pdf-tools-pepe-v020';
+const CACHE = 'pdf-tools-pepe-v022';
 const APP = [
   './',
   './index.html',
   './manifest.json',
   './service-worker.js',
+  './css/styles.css',
+  './js/engines.js',
+  './js/app.js',
+  './js/tools.js',
   './icons/favicon-32.png',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
@@ -11,15 +15,19 @@ const APP = [
   './icons/return.png',
   './icons/tools/combine.png',
   './icons/tools/deletepage.png',
+  './icons/tools/divide.png',
   './icons/tools/extract.png',
+  './icons/tools/fill.png',
   './icons/tools/html2pdf.png',
   './icons/tools/image2pdf.png',
   './icons/tools/merge.png',
   './icons/tools/pdf2image.png',
   './icons/tools/reorder.png',
+  './icons/tools/rotate.png',
   './icons/tools/signature.png',
   './icons/tools/text2pdf.png',
   './icons/tools/txt2pdf.png',
+  './icons/tools/viewer.png',
   './icons/tools/watermark.png',
   './icons/tools/web2pdf.png'
 ];
@@ -36,11 +44,11 @@ const CDN_PREFIX = [
 ];
 const isCdn = u => CDN.includes(u) || CDN_PREFIX.some(p => u.startsWith(p));
 
-async function cacheUrl(cache, url) {
-  try {
-    const r = await fetch(url, { cache: 'no-store', mode: 'cors', credentials: 'omit' });
-    if (r && r.ok) { await cache.put(url, r.clone()); return true; }
-  } catch (e) {}
+async function cacheUrl(cache, url){
+  try{
+    const r = await fetch(url,{cache:'no-store',mode:'cors',credentials:'omit'});
+    if(r && r.ok){ await cache.put(url, r.clone()); return true; }
+  }catch(e){}
   return false;
 }
 
@@ -58,37 +66,33 @@ self.addEventListener('activate', e => e.waitUntil((async () => {
 })()));
 
 self.addEventListener('message', e => {
-  if (e.data?.type === 'ENSURE_LIBS') e.waitUntil((async () => {
+  if(e.data?.type === 'ENSURE_LIBS') e.waitUntil((async () => {
     const c = await caches.open(CACHE);
     const result = {};
-    for (const u of CDN) result[u] = !!(await c.match(u)) || await cacheUrl(c, u);
-    e.source?.postMessage({ type: 'LIBS_READY', result });
+    for(const u of CDN) result[u] = !!(await c.match(u)) || await cacheUrl(c, u);
+    e.source?.postMessage({type:'LIBS_READY', result});
   })());
 });
 
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET') return;
-  if (req.headers.has('range')) return;
-
-  let u; try { u = new URL(req.url); } catch (_) { return; }
+  if(req.method !== 'GET') return;
+  if(req.headers.has('range')) return;
+  let u; try{ u = new URL(req.url); }catch(_){ return; }
   const app = u.origin === location.origin;
-  if (!app && !isCdn(req.url)) return;
-
+  if(!app && !isCdn(req.url)) return;
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
     const hit = await c.match(req);
-    if (hit) return hit;
-    try {
+    if(hit) return hit;
+    try{
       const r = await fetch(req);
-      if (r && r.ok && r.type !== 'opaque') {
-        try { await c.put(req, r.clone()); } catch (_) {}
-      }
+      if(r && r.ok && r.type !== 'opaque'){ try{ await c.put(req, r.clone()); }catch(_){} }
       return r;
-    } catch (err) {
-      if (app && req.mode === 'navigate') {
+    }catch(err){
+      if(app && req.mode === 'navigate'){
         const fb = (await c.match('./index.html')) || (await c.match('./'));
-        if (fb) return fb;
+        if(fb) return fb;
       }
       throw err;
     }
