@@ -259,57 +259,126 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 16px 24px}
    ========================================================================== */
 .viewer-v2{
   position:fixed;top:0;left:0;right:0;bottom:0;z-index:40;
-  background:rgb(248,248,248);      /* ← el fondo general del visor */
+  background:rgb(248,248,248);
   display:flex;flex-direction:column;overflow:hidden;
 }
+.viewer-v2 .viewer-topbar{
+  background:var(--bg);border-bottom:1px solid var(--border);
+  padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;
+}
+.viewer-v2 .viewer-title{
+  font-size:14px;font-weight:780;color:var(--text);
+  display:flex;align-items:center;gap:8px;min-width:0;flex:1;
+}
+.viewer-v2 .viewer-filename{
+  color:var(--muted);font-weight:400;font-size:13px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:240px;
+}
+.viewer-v2 .viewer-actions{
+  display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;align-items:center;
+}
+.viewer-v2 .viewer-actions button{
+  min-width:38px;height:38px;border:1px solid var(--border);
+  background:var(--surface);border-radius:10px;cursor:pointer;
+  color:var(--text);font-size:15px;padding:0 10px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.viewer-v2 .viewer-actions button:hover{background:var(--accent2)}
+.viewer-v2 .viewer-counter{
+  font-size:12px;color:var(--muted);padding:0 6px;white-space:nowrap;
+  display:flex;align-items:center;gap:4px;
+}
+.viewer-v2 .viewer-counter input#vv-pagenum{
+  width:48px;
+  border:1px solid var(--border);
+  background:var(--surface);
+  color:var(--text);
+  border-radius:6px;
+  padding:4px 6px;
+  font-size:12px;
+  text-align:center;
+}
+.viewer-v2 .viewer-counter.zoom{min-width:50px;justify-content:center}
 
 .viewer-v2 .viewer-page{
   flex:1;overflow:auto;-webkit-overflow-scrolling:touch;
-  background:rgb(248,248,248);      /* ← el área scrolleable alrededor de las hojas */
+  background:rgb(248,248,248);
   scroll-behavior:smooth;
   padding:0;
 }
-.viewer-v2 .viewer-topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
-.viewer-v2 .viewer-title{font-size:14px;font-weight:780;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.viewer-v2 .viewer-actions{display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;align-items:center}
-.viewer-v2 .viewer-actions button{min-width:38px;height:38px;border:1px solid var(--border);background:var(--surface);border-radius:10px;cursor:pointer;color:var(--text);font-size:15px;padding:0 10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.viewer-v2 .viewer-actions button:hover{background:var(--accent2)}
-.viewer-v2 .viewer-actions button.active{background:var(--accent);color:white;border-color:var(--accent)}
-.viewer-v2 .viewer-counter{font-size:12px;color:var(--muted);padding:0 6px;min-width:64px;text-align:center;white-space:nowrap}
-.viewer-v2 .viewer-counter.zoom{min-width:50px}
-
 .viewer-v2 .viewer-page-wrap{
+  /* Por defecto, alineación natural a la izquierda: permite scroll horizontal */
   display:flex;
   flex-direction:column;
-  align-items:center;
+  align-items:flex-start;
   gap:42px;
   padding:21px 14px;
   min-height:100%;
+  min-width:min-content;
   box-sizing:border-box;
+}
+/* Cuando el contenido cabe, se centra */
+.viewer-v2 .viewer-page-wrap.centered{
+  align-items:center;
+  min-width:auto;
+  width:100%;
+}
+.viewer-v2 .page-box{
+  position:relative;
+  /* El canvas define el tamaño del box */
+  display:inline-block;
 }
 .viewer-v2 .page-canvas{
   display:block;
-  background:#f8f8f8;
+  background:#fff;
   border:1px solid rgb(203,203,203);
   box-shadow:none;
   border-radius:0;
-  max-width:100%;
+  /* SIN max-width: el canvas puede crecer horizontalmente con zoom */
 }
+.viewer-v2 .text-layer{
+  position:absolute;
+  left:0;top:0;right:0;bottom:0;
+  overflow:hidden;
+  user-select:text;
+  pointer-events:auto;
+}
+.viewer-v2 .text-layer span{
+  color:transparent;
+  background:transparent;
+}
+.viewer-v2 .text-layer span::selection{
+  background:rgba(37,99,235,.35);
+}
+
 .viewer-v2 .viewer-empty{
-  color:#cbd5e1;text-align:center;padding:60px 20px;font-size:14px;
+  color:#4b5563;text-align:center;padding:60px 20px;font-size:14px;
 }
 .viewer-v2 .viewer-empty .drop-area{
-  border:2px dashed #64748b;border-radius:16px;padding:40px 24px;
+  border:2px dashed #9ca3af;border-radius:16px;padding:40px 24px;
   max-width:520px;margin:20px auto;cursor:pointer;transition:background .15s;
 }
-.viewer-v2 .viewer-empty .drop-area.drag{background:rgba(96,165,250,.15);border-color:#60a5fa}
+.viewer-v2 .viewer-empty .drop-area.drag{
+  background:rgba(96,165,250,.15);border-color:#60a5fa;
+}
 .viewer-v2 .search-bar{
-  display:none;padding:6px 12px;background:var(--surface);border-bottom:1px solid var(--border);gap:8px;align-items:center;flex-shrink:0;
+  display:none;padding:6px 12px;background:var(--surface);
+  border-bottom:1px solid var(--border);gap:8px;align-items:center;flex-shrink:0;
 }
 .viewer-v2 .search-bar.on{display:flex}
-.viewer-v2 .search-bar input{flex:1;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:8px;font-size:13px}
-.viewer-v2 .search-bar button{border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px}
-.viewer-v2 .search-bar .count{color:var(--muted);font-size:12px;min-width:60px;text-align:center}
+.viewer-v2 .search-bar input{
+  flex:1;border:1px solid var(--border);background:var(--surface);
+  color:var(--text);border-radius:8px;padding:8px;font-size:13px;
+}
+.viewer-v2 .search-bar button{
+  border:1px solid var(--border);background:var(--surface2);
+  color:var(--text);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;
+}
+.viewer-v2 .search-bar .count{
+  color:var(--muted);font-size:12px;min-width:60px;text-align:center;
+}
 
 /* ==========================================================================
    Llenar PDF
